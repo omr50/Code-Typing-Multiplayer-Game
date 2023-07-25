@@ -10,13 +10,13 @@ export function startReceiver(): Promise<void> {
           if (err) {
             reject(err);
           } else {
-            const q = 'my_queue';
+            const q = 'user_created';
 
             ch.assertQueue(q, {durable: false});
             console.log(" [*] Waiting for messages in %s. To exit press CTRL+C", q);
             
             ch.consume(q, (msg: amqp.Message | null) => {
-              console.log(" [x] Received %s", msg?.content.toString());
+              console.log(" [x] Order created for %s", msg?.content.toString());
             }, {noAck: true});
 
             resolve();

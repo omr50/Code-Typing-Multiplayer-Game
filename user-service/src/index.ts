@@ -8,7 +8,6 @@ const port = process.env.PORT || 3000;
 
 app.get('/', async (req, res) => {
   try {
-      await startReceiver();
       await startSender();
       res.send('Hello, user service!');
   } catch (err: any ) {

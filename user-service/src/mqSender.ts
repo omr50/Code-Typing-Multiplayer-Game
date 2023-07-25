@@ -10,8 +10,8 @@ export function startSender(): Promise<void> {
           if (err) {
             reject(err);
           } else {
-            const q = 'my_queue';
-            const msg = 'Hello World!';
+            const q = 'user_created';
+            const msg = 'user3';
 
             ch.assertQueue(q, {durable: false});
             ch.sendToQueue(q, Buffer.from(msg));
