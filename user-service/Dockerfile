@@ -20,4 +20,4 @@ RUN npx tsc
 EXPOSE 3000
 
 # Command to run the app using compiled JavaScript code
-CMD [ "node", "./dist/index.js" ]
+CMD [ "node", "dist/index.js" ]
