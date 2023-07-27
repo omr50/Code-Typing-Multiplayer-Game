@@ -2,17 +2,19 @@ import express from 'express';
 import { startSender } from './mqSender';
 import db from "./models/model_init"
 import User from './models/User';
+import userRoutes from './Routes/User/users'
 
 const sequelize = db.sequelize;
 const app = express();
+
+app.use('/users', userRoutes)
+
 const port = process.env.PORT || 3000;
 
 
 app.get('/', async (req, res) => {
   try {
       await startSender();
-      res.send('Hello, user service!');
-
       const newUser = await User.create({
         name: 'John Doe',
         email: 'john.doe@example.com'
@@ -22,6 +24,7 @@ app.get('/', async (req, res) => {
       const user = await User.findByPk(1);
 
       console.log(user)
+      res.send('Hello, user service!');
 
   } catch (err: any ) {
       res.status(500).send('An error occurred: ' + err.toString());

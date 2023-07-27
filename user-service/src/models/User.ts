@@ -6,8 +6,9 @@ const sequelize = db.sequelize;
 
 class User extends Model {
   public id!: number;
-  public name!: string;
+  public username!: string;
   public email!: string;
+  public password!: string;
 }
 
 User.init(
@@ -17,7 +18,7 @@ User.init(
       autoIncrement: true,
       primaryKey: true,
     },
-    name: {
+    username: {
       type: new DataTypes.STRING(128),
       allowNull: false,
     },
@@ -25,6 +26,10 @@ User.init(
       type: new DataTypes.STRING(128),
       allowNull: false,
     },
+    password: {
+      type: new DataTypes.STRING(128),
+      allowNull: false,
+    }
   },
   {
     tableName: "users",
