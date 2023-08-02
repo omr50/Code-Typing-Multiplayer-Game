@@ -2,4 +2,4 @@ user-service/node_modules
 order-service/node_modules
 game-service/node_modules
 api-gateway/node_modules
-/.env
+.env
