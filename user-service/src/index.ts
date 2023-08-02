@@ -3,33 +3,60 @@ import { startSender } from './mqSender';
 import db from "./models/model_init"
 import User from './models/User';
 import userRoutes from './Routes/User/users'
+import signup from './services/signup/signup';
+import { login } from './services/login/login';
 
 const sequelize = db.sequelize;
 const app = express();
-
-app.use('/users', userRoutes)
+app.use(express.json());
 
 const port = process.env.PORT || 3000;
 
 
-app.get('/', async (req, res) => {
-  try {
-      await startSender();
-      const newUser = await User.create({
-        name: 'John Doe',
-        email: 'john.doe@example.com'
-      });
-      
-      // Find a user by id
-      const user = await User.findByPk(1);
-
-      console.log(user)
-      res.send('Hello, user service!');
-
-  } catch (err: any ) {
-      res.status(500).send('An error occurred: ' + err.toString());
-  }
+app.get('/user', async (req, res) => {
+  res.send('Hello, user service!');
 });
+
+
+// Create new User.
+app.post('/user/login', async (req, res) => {
+try {
+
+  const { email, password } = req.body;
+  const { username, token } = await login({ email, password});
+  res.json({ username, token });
+
+} catch (e) {
+  res.status(400).send('Authentication Error.');
+}
+
+})
+
+app.post('/user/signup', async (req, res) => {
+  const { username, email, password } = req.body;
+  try {
+    await signup({username, email, password})
+    res.status(201).send('Successfully created user!')
+  } catch (error: any) {
+    res.status(400).send(error.message);
+  }
+})
+
+app.get('/user/:id', (req, res) => {
+const id = req.params.id;
+res.send(`Got user with id ${id}`)
+})
+
+
+app.put('/user/:id', (req, res) => {
+const id = req.params.id;
+res.send(`Updated user with id ${id}`)
+})
+
+app.delete('/user/:id', (req, res) => {
+const id = req.params.id;
+res.send(`Deleted user with id ${id}`)
+})
 
 sequelize.authenticate()
   .then(() => {

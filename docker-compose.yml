@@ -5,12 +5,23 @@ services:
       context: ./user-service
     ports:
       - "3000:3000"
+    env_file:
+      - .env
+
 
   order-service:
     build:
       context: ./order-service
     ports:
       - "4000:4000"
+    env_file:
+      - .env
+
+  api-gateway:
+    build:
+      context: ./api-gateway
+    ports:
+      - "2000:2000"
     env_file:
       - .env
 

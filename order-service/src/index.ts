@@ -5,7 +5,7 @@ const app = express();
 const port = process.env.PORT || 4000;
 
 
-app.get('/', async (req, res) => {
+app.get('/order', async (req, res) => {
   try {
       await startReceiver();
       res.send('Hello, order service!');

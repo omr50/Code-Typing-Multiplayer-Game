@@ -2,6 +2,8 @@ import express from 'express'
 
 const router = express.Router();
 import User from '../../models/User';
+import { login } from '../../services/login/login';
+import signup from '../../services/signup/signup';
 
 // get all users? (too much users)
 router.get('/', (req, res) => {
@@ -9,54 +11,27 @@ router.get('/', (req, res) => {
 })
 
 // Create new User.
-router.post('/', async (req, res) => {
-  if (!req.body)
-   return res.status(400).send(`Enter a valid user`)
-  
-   const {email, username, password } = req.body;
-
-  const newUser = new User({
-    email: email,
-    username: username,
-    password: password,
-  })
-
+router.post('/login', async (req, res) => {
   try {
 
-    const existing_Username = await User.findOne({
-      where: {
-        username: newUser.username
-      }
-    });
+    const { email, password } = req.body;
+    const { username, token } = await login({ email, password});
+    res.json({ username, token });
 
-    const existing_Email = await User.findOne({
-      where: {
-        email: newUser.email
-      }
-    });
-    // if there is no similar username or email on record
-    // create the user.
-    if (!existing_Username && !existing_Email){
-      await newUser.save();
-      return res.status(200).send(`Successfully created User: ${newUser}`)
-    }
-
-    else if (existing_Username) {
-      return res.status(409).send('Username already exists!')
-    }
-
-    else if (existing_Email) {
-      return res.status(409).send('Email already exists!')
-    }
-    
-    throw new Error();
-
-  } catch (error) {
-    return res.status(409).send(`Encountered Error: ${error}`)
-
+  } catch (e) {
+    res.status(400).send('Authentication Error.');
   }
+
 })
 
+router.post('/signup', async (req, res) => {
+  const { username, email, password } = req.body;
+  try {
+    await signup({username, email, password})
+  } catch (error: any) {
+    res.status(400).send(error.message);
+  }
+})
 
 router.get('/:id', (req, res) => {
   const id = req.params.id;
@@ -73,6 +48,7 @@ router.delete('/:id', (req, res) => {
   const id = req.params.id;
   res.send(`Deleted user with id ${id}`)
 })
+
 
 
 export default router;

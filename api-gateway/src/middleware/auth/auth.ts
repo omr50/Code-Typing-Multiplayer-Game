@@ -1,7 +1,7 @@
 import jwt, { Secret, JwtPayload } from 'jsonwebtoken'
 import { Request, Response, NextFunction } from 'express';
+import * as dotenv from 'dotenv';
 
-const dotenv = require('dotenv');
 dotenv.config();
 const SECRET_KEY = process.env.secretkey;
 
@@ -14,6 +14,7 @@ export interface CustomRequest extends Request {
  // if they have correct jwt, let them through.
 export const auth = async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const username = req.params.username;
     const token = req.header('Authorization')?.replace('Bearer ', '');
  
     if (!token) {
@@ -21,12 +22,21 @@ export const auth = async (req: Request, res: Response, next: NextFunction) => {
     }
  
     const decoded = jwt.verify(token, SECRET_KEY!);
+
+    if (typeof decoded == 'string' || !('user' in decoded)) {
+      throw new Error();
+    } 
+    else {
+      if (username != decoded.user) {
+        throw new Error();
+      }
+    }
     (req as CustomRequest).token = decoded;
  
     return next();
 
   } catch (err) {
-    res.status(401).send('Please authenticate');
+    res.status(401).send('Authentication Error!');
   }
  };
 
