@@ -1,13 +1,31 @@
 version: '3.8'
 services:
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - 3000:3000
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+
+  game-service:
+    build:
+      context: ./game-service
+    ports:
+      - "5000:5000"
+    env_file:
+      - .env
+
   user-service:
     build:
       context: ./user-service
     ports:
-      - "3000:3000"
+      - "6000:6000"
     env_file:
       - .env
-
 
   order-service:
     build:
@@ -51,6 +69,7 @@ services:
       - '5050:80'
     volumes:
       - pgadmin-data:/var/lib/pgadmin
+
 volumes:
   pgadmin-data:
   db-data:

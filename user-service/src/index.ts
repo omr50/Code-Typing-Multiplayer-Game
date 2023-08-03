@@ -10,7 +10,7 @@ const sequelize = db.sequelize;
 const app = express();
 app.use(express.json());
 
-const port = process.env.PORT || 3000;
+const port = process.env.PORT || 6000;
 
 
 app.get('/user', async (req, res) => {
