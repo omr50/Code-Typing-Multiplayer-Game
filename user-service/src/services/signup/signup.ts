@@ -1,4 +1,4 @@
-import User from "../../models/User";
+import User from "../../sequelize-config/models/User";
 import bcrypt from 'bcrypt'
 import jwt, { Secret, JwtPayload } from 'jsonwebtoken';
 import { userSchema } from "../../schemas/userSchema";

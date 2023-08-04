@@ -1,20 +1,19 @@
-# We're using the node base image
-FROM node:14
+# pull official base image
+FROM node:14-alpine
 
-# Set the working directory in the container to /app
+# set working directory in the container
 WORKDIR /app
 
-# Copy package.json and package-lock.json into the root directory in your container
-COPY package*.json ./
+# add `/app/node_modules/.bin` to $PATH
+ENV PATH /app/node_modules/.bin:$PATH
 
-# Install dependencies
-RUN npm install
+# install app dependencies
+COPY package.json ./
+COPY package-lock.json ./
+RUN npm install --silent
 
-# Copy the rest of your app's source code into the working directory
-COPY . .
+# add app
+COPY . ./
 
-# Make port 3000 available outside the container
-EXPOSE 3000
-
-# Start your app
+# start app
 CMD ["npm", "start"]

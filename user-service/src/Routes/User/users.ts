@@ -1,7 +1,7 @@
 import express from 'express'
 
 const router = express.Router();
-import User from '../../models/User';
+import User from '../../sequelize-config/models/User'
 import { login } from '../../services/login/login';
 import signup from '../../services/signup/signup';
 

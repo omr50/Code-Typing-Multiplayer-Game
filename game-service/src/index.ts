@@ -9,7 +9,8 @@ const wss = new WebSocket.Server({ port: port });
 let gameStartTimeouts: { [gameRoomId: string]: NodeJS.Timeout } = {};
 let gameRooms: GameStates = {}; // to store game room information
 let gameRoomId = uuidv4();
-
+let message = {}
+let startTime: number;
 wss.on('connection', (ws: WebSocket, request: IncomingMessage) => {
 
   const urlParams = new URLSearchParams(request.url);
@@ -42,12 +43,22 @@ wss.on('connection', (ws: WebSocket, request: IncomingMessage) => {
     }))
   };
 
-  ws.send(JSON.stringify(data));
+  message = {
+    "type": "UPDATE_PLAYER_STATE",
+    "data": data
+  }
+
+  // for each player send the players in there.
+  gameRooms[gameRoomId].players.forEach(player => {
+    player.websocket.send(JSON.stringify(message))
+  });
 
 
   if (gameRooms[gameRoomId].players.length === 1) {
     // Start a 10 second timeout as soon as the first player joins
     console.log("Starting 10 second timer")
+
+    startTime = Date.now() + 10000;
     gameStartTimeouts[gameRoomId] = setTimeout(startGame, 10000);
   } 
   else if (gameRooms[gameRoomId].players.length === 5) {
@@ -56,6 +67,17 @@ wss.on('connection', (ws: WebSocket, request: IncomingMessage) => {
     clearTimeout(gameStartTimeouts[gameRoomId]);
     startGame();
   }
+
+  // client will get the start time
+  // and use that to set its clock.
+  message = {
+    "type": "TIMER",
+    "data": {
+      "startTime": startTime
+    } 
+  }
+
+  ws.send(JSON.stringify(message));
 
   // if we reach a length of 5 or the timer runs out we have to 
 
@@ -73,7 +95,7 @@ wss.on('connection', (ws: WebSocket, request: IncomingMessage) => {
 
   ws.on('close', () => {
     // handle client disconnection
-    gameRooms[gameRoomId].players = gameRooms[gameRoomId].players.filter(player => player.websocket !== ws);
+    console.log('socket closed!')
   });
   
 });
@@ -91,7 +113,14 @@ function startGame() {
   gameRooms[currentGameRoomId].players.forEach(player => {
     if (player.websocket.readyState === WebSocket.OPEN) {
       console.log('a')
-      player.websocket.send('Game will start in 5 seconds...');
+
+      message = {
+        "type": "GAME_READY",
+        "data": {
+          "timer": 5
+        }
+      }
+      player.websocket.send(JSON.stringify(message));
     }
   });
 

@@ -11,6 +11,7 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "@types/bcrypt": "^5.0.0",
     "@types/node": "^20.4.5",
     "@types/uuid": "^9.0.2",
     "@types/ws": "^8.5.5",
@@ -18,6 +19,11 @@
     "typescript": "^5.1.6"
   },
   "dependencies": {
+    "bcrypt": "^5.1.0",
+    "pg": "^8.11.2",
+    "pg-hstore": "^2.3.4",
+    "sequelize": "^6.32.1",
+    "sequelize-cli": "^6.6.1",
     "uuid": "^9.0.0",
     "ws": "^8.13.0"
   }

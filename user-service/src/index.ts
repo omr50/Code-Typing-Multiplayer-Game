@@ -1,8 +1,6 @@
 import express from 'express';
 import { startSender } from './mqSender';
-import db from "./models/model_init"
-import User from './models/User';
-import userRoutes from './Routes/User/users'
+import db from "./sequelize-config/models/model_init"
 import signup from './services/signup/signup';
 import { login } from './services/login/login';
 

@@ -27,4 +27,9 @@ frontend/npm-debug.log*
 frontend/yarn-debug.log*
 frontend/yarn-error.log*
 
+scraper/.env
+scraper/Files/*/*
+scraper/node_modules
+scraper/snippet_savers/*/*
+
 .env

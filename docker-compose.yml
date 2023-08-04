@@ -5,6 +5,8 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+    environment:
+      - WATCHPACK_POLLING=true
     ports:
       - 3000:3000
     volumes:
@@ -56,7 +58,7 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: users
+      POSTGRES_DB: CODE_TYPER_DB
     ports:
       - "5432:5432"
 
