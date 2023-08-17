@@ -1,6 +1,6 @@
 import { Model, DataTypes} from "sequelize";
 
-import db from './model_init';
+import db from "./model_init";
 import bcrypt from 'bcrypt'
 
 const sequelize = db.sequelize;
