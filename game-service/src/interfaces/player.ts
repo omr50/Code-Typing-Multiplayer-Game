@@ -5,7 +5,9 @@ interface Player {
   name: string,
   words: number,
   mistakes: number,
+  currMistakes: number,
   websocket: WebSocket,
+  playerSnippet: string[]
 }
 
 export default Player

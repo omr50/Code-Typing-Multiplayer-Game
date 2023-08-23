@@ -8,11 +8,19 @@ import CodeSnippet from "./sequelize-config/models/CodeSnippet";
 import { v4 as uuidv4 } from 'uuid';
 import { WebSocket } from 'ws';
 import db from "./sequelize-config/models/model_init";
+import * as util from 'util';
+
 const app = express();
 app.use(cors())
 const port: number = 5000;
 const server = http.createServer(app)
-const wss = new WebSocket.Server({ server });
+const wss = new WebSocket.Server({
+  server, 
+  handleProtocols: (protocols, request) => {
+    const protocolsArray = Array.from(protocols);
+    return protocolsArray[0];
+  }
+});
 const languages = ["c", "cpp", "csharp", "go", "html", "java", "javascript", "kotlin", "python", "typescript"]
 
 
@@ -42,7 +50,7 @@ async function startApp() {
   try {
     await connectDB();
 
-    app.listen(port, () => {
+    server.listen(port, () => {
       console.log('Listening on %d', port);
     });
 
@@ -94,7 +102,7 @@ let allCode: code = {
   }
 
   wss.on('connection', (ws: WebSocket, request: IncomingMessage) => {
-
+    console.log("we gota connection")
     const urlParams = new URLSearchParams(request.url);
     const name = urlParams.get('name');
   
@@ -103,8 +111,10 @@ let allCode: code = {
       id: uuidv4(),  // this will be used only by the user
       game_id: uuidv4(),  // this will be used by all to identify the players.
       words: 0,
+      currMistakes: 0,
       mistakes: 0,
       websocket: ws,
+      playerSnippet: []
     };
   
   
@@ -115,34 +125,40 @@ let allCode: code = {
       // first get random language, then get random out of 10.
       let randomLanguage = languages[Math.floor(Math.random() * languages.length)];
       let randomCode = Math.floor(Math.random() * languages.length);
-        let snippet = allCode[randomLanguage][randomCode]
+      let snippet = allCode[randomLanguage][randomCode]
         if (snippet) {
           randomSnippet = snippet;
         }
       
-      gameRooms[gameRoomId] = { players: [], gameStarted: false, Snippet: randomSnippet  };
+      gameRooms[gameRoomId] = { players: [], gameStarted: false, Snippet: randomSnippet, startTime: 0  };
     }
   
     gameRooms[gameRoomId].players.push(player)
   
-    let data = {
-      gameRoomId: gameRoomId,
-      Snippet: gameRooms[gameRoomId].Snippet.replace(/\t/g, "    "),
-      players: gameRooms[gameRoomId].players.map(player => ({
-        name: player.name,
-        game_id: player.game_id,
-        words: player.words,
-        mistakes: player.mistakes
-      }))
-    };
-  
-    message = {
-      "type": "UPDATE_PLAYER_STATE",
-      "data": data
-    }
   
     // for each player send the players in there.
     gameRooms[gameRoomId].players.forEach(player => {
+      let players =  gameRooms[gameRoomId].players.map(player => ({
+        name: player.name,
+        game_id: player.game_id,
+        words: player.words,
+        mistakes: player.mistakes,
+        playerSnippet: player.playerSnippet,
+      }))
+      let data = {
+        gameRoomId: gameRoomId,
+        Snippet: gameRooms[gameRoomId].Snippet.replace(/\t/g, "    "),
+        players: players,
+        // make sure each player gets oonly their unique id.
+        playerId: player.id
+
+      };
+    
+      message = {
+        "type": "UPDATE_PLAYER_STATE",
+        "data": data
+      }
+      
       player.websocket.send(JSON.stringify(message))
     });
   
@@ -176,19 +192,132 @@ let allCode: code = {
   
     ws.on('message', message => {
       // handle incoming message
-      console.log(`Received message ${message} from game room ${gameRoomId}`);
+      // Since there may be multiple games going
+      // on at once, we need a way to reliably
+      // know which game the sending player is
+      // coming from. We can just make the player
+      // send the request with the game room id.
+      // in that case the user just sends the id
+      // then we use that to update the relevant
+      // info, and then update the user stats.
+
+      // get the game room id from the messge itself
+      // then we will deal with logic later (INCOMPLETE)
+      const data = JSON.parse(message.toString());
+
+
+      if (data.type === "LEAVING_GAME") {
+        const currGameRoom = gameRooms[data.gameRoomId];
+        if (currGameRoom) {
+            currGameRoom.players = currGameRoom.players.filter(player => player.id !== data.playerId);
+            console.log('player disconnected')
+        
+        }
+        return;
+      }
+      // console.log(data);
+      const currGameRoomId = data.gameRoomId;
+      const playerId = data.playerId;
+
+      // push the words we got into the player snippet
+      // array. Then after this get wpm. Mistakes should
+      // be calculated in here because if we calculate them
+      // in the array that gets the current mistakes, we will
+      // end up counting mistakes every time a message comes in
+      // so if one mistake is not fixed, it will end up being incremented
+      // every time a message is sent which will give hundreds of mistakes
+      // very quickly.
+      if (data.words) {
+        for (let i = 0; i < gameRooms[currGameRoomId].players.length; i++) {
+          if (playerId == gameRooms[currGameRoomId].players[i].id) {
+            
+            for (let ch of data.words) {
+              // if we have backspace then remove by the amount of chars
+              // specified in the backspace string.
+              if (ch.startsWith("Backspace")) {
+                const num = parseInt(ch.split(" ")[1], 10);
+                while (gameRooms[currGameRoomId].players[i].playerSnippet.length > num) {
+                  gameRooms[currGameRoomId].players[i].playerSnippet.pop();
+                }
+              }
+              else {
+                // every time you add a character, check to see if there is 
+                // a mistake. we don't need to check on backspaces though.
+                gameRooms[currGameRoomId].players[i].playerSnippet.push(ch)
+                const len = gameRooms[currGameRoomId].players[i].playerSnippet.length;
+                if (gameRooms[currGameRoomId].players[i].playerSnippet[len - 1] != gameRooms[currGameRoomId].Snippet[len - 1]) {
+                  gameRooms[currGameRoomId].players[i].mistakes += 1;
+                } 
+              }
+
+            }
+            
+          }
+          // after getting the player snippet, we should try to get calculate
+          // words, currMistakes, and only add on to mistakes since we want
+          // the total for that so in the end the user can get the accuracy.
+          gameRooms[currGameRoomId].players[i].currMistakes = 0;
+          console.log("SNIPPET", gameRooms[currGameRoomId].players[i].playerSnippet)
+          for (let j = 0; j < gameRooms[currGameRoomId].players[i].playerSnippet.length; j++) {
+            if (gameRooms[currGameRoomId].players[i].playerSnippet[j] != gameRooms[currGameRoomId].Snippet[j]) {
+              gameRooms[currGameRoomId].players[i].currMistakes += 1;
+            }
+          }
+          gameRooms[currGameRoomId].players[i].words = gameRooms[currGameRoomId].players[i].playerSnippet.length;
+          
+        }
+    }
+
   
       // broadcast message to all clients in the game room
-      gameRooms[gameRoomId].players.forEach(player => {
-        if (player.websocket !== ws && player.websocket.readyState === WebSocket.OPEN) {
-          player.websocket.send(message);
+
+      // all snippets of each player to see real time update. 
+      // const allSnippets: string[][] = gameRooms[currGameRoomId].players.map(player => player.playerSnippet);
+      const allProgress = gameRooms[currGameRoomId].players.map(({ words, mistakes, currMistakes, name, id }) => {
+        const currentTime = Date.now();
+        console.log('Current Time:', currentTime);
+        console.log('Start Time:', gameRooms[currGameRoomId].startTime);
+        console.log('Difference:', currentTime - gameRooms[currGameRoomId].startTime);
+        
+        return {
+          time: currentTime,
+          startTime: gameRooms[currGameRoomId].startTime,
+          id: id,
+          words: words,
+          name: name,
+          mistakes: mistakes,
+          currMistakes: currMistakes,
+          wpm: Math.floor(60000 * (words - currMistakes) / (5 * (currentTime - gameRooms[currGameRoomId].startTime))),
+          progress: (words - currMistakes) / gameRooms[currGameRoomId].Snippet.length
+        };
+      });
+      
+
+      gameRooms[currGameRoomId].players.forEach(player => {
+        if (player.websocket.readyState === WebSocket.OPEN) {
+          // return the total string arrays of each player. 
+          gameRooms[currGameRoomId].players
+          let message = {
+            "type": "WORDS",
+            "data": {
+              'progress': allProgress
+            } 
+          }
+          player.websocket.send(JSON.stringify(message));
+          console.log('GOT MESSAGE FROM PLAYER', playerId)
+          console.log(util.inspect(allProgress, { depth: null, colors: true }));
         }
       });
     });
   
     ws.on('close', () => {
       // handle client disconnection
+      
       console.log('socket closed!')
+    });
+
+    ws.on('error', (err) => {
+      console.error("WebSocket error observed:", err);
     });
     
   });
@@ -200,6 +329,7 @@ startApp();
 
 function startGame() {
   let currentGameRoomId = gameRoomId;
+  gameRooms[currentGameRoomId].startTime = Date.now() + 5000;
   gameRoomId = uuidv4();  // Generate new gameRoomId immediately
   // after 5 seconds start the game.
   console.log("old id:", currentGameRoomId, "new id:", gameRoomId)

@@ -4,6 +4,7 @@ import NavigationBar from './NavBar/NavBarComponent';
 import WelcomeComponent from './Welcome/Welcome';
 import SinglePlayerGame from './SinglePlayerGame/SinglePlayerGame';
 import { useTheme } from '../contexts/theme/ThemeContext';
+import MultiplayerGame from './MultiplayerGame/MultiplayerGame';
 // import { useAuth } from './auth/AuthContext';
 // import { Navigate } from 'react-router-dom'
 // import AuthProvider from './auth/AuthContext';
@@ -50,6 +51,7 @@ const AppStructure = () => {
                 <Routes>
                         <Route path='' element={<WelcomeComponent/>}/>
                         <Route path='/game/:language' element={<SinglePlayerGame/>}/>
+                        <Route path='/multiplayer' element={<MultiplayerGame/>}/>
                         {/* <Route path='/signup' element={<SignupComponent changeComp={changeComponent} closeForm={closeComp}/>}/> */}
                 </Routes>
                 {/* <FooterComponent/> */}

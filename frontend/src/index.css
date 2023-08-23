@@ -10,7 +10,7 @@
   --game-input-box: rgb(246, 240, 240);
   --code-text: rgb(0, 0, 0);
   --theme-color: white;
-  --button-hover: green;
+  --button-hover: rgb(34, 185, 34);
 }
 
 .dark {

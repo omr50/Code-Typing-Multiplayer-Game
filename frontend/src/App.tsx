@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import logo from './logo.svg';
 import './App.css';
 import Button from './Components/Customizable-Button/Button';
-import CodeTextArea from './Components/CodeTextArea/CodeTextArea';
+import MultiplayerGame from './Components/MultiplayerGame/MultiplayerGame';
 import AppStructure from './Components/AppStructure';
 import { ThemeProvider, useTheme } from './contexts/theme/ThemeContext';
 

@@ -8,4 +8,5 @@ export interface game {
   players: Player[];
   gameStarted: boolean;
   Snippet: string;
+  startTime: number;
 }
