@@ -1,0 +1,2564 @@
+id,language,code
+5,c,"static void aio_nr_sub(unsigned nr)
+{
+	spin_lock(&aio_nr_lock);
+	if (WARN_ON(aio_nr - nr > aio_nr))
+		aio_nr = 0;
+	else
+		aio_nr -= nr;
+	spin_unlock(&aio_nr_lock);
+}"
+6,c,"static inline void iocb_destroy(struct aio_kiocb *iocb)
+{
+	if (iocb->ki_eventfd)
+		eventfd_ctx_put(iocb->ki_eventfd);
+	if (iocb->ki_filp)
+		fput(iocb->ki_filp);
+	percpu_ref_put(&iocb->ki_ctx->reqs);
+	kmem_cache_free(kiocb_cachep, iocb);
+}"
+7,c,"static bool get_reqs_available(struct kioctx *ctx)
+{
+	if (__get_reqs_available(ctx))
+		return true;
+	user_refill_reqs_available(ctx);
+	return __get_reqs_available(ctx);
+}"
+8,c,"SYSCALL_DEFINE1(io_destroy, aio_context_t, ctx)
+{
+	struct kioctx *ioctx = lookup_ioctx(ctx);
+	if (likely(NULL != ioctx))
+	{
+		struct ctx_rq_wait wait;
+		int ret;
+		init_completion(&wait.comp);
+		atomic_set(&wait.count, 1);
+		ret = kill_ioctx(current->mm, ioctx, &wait);
+		percpu_ref_put(&ioctx->users);
+		if (!ret)
+			wait_for_completion(&wait.comp);
+		return ret;
+	}
+	pr_debug(""EINVAL: invalid context id\n"");
+	return -EINVAL;
+}"
+10,c,"struct __aio_sigset
+{
+	const sigset_t __user *sigmask;
+	size_t sigsetsize;
+};"
+16,c,"int cma_for_each_area(int (*it)(struct cma *cma, void *data), void *data)
+{
+	int i;
+	for (i = 0; i < cma_area_count; i++)
+	{
+		int ret = it(&cma_areas[i], data);
+		if (ret)
+			return ret;
+	}
+	return 0;
+}"
+17,c,"static inline unsigned int pe_order(enum page_entry_size pe_size)
+{
+	if (pe_size == PE_SIZE_PTE)
+		return PAGE_SHIFT - PAGE_SHIFT;
+	if (pe_size == PE_SIZE_PMD)
+		return PMD_SHIFT - PAGE_SHIFT;
+	if (pe_size == PE_SIZE_PUD)
+		return PUD_SHIFT - PAGE_SHIFT;
+	return ~0;
+}"
+18,c,"static int __init init_dax_wait_table(void)
+{
+	int i;
+	for (i = 0; i < DAX_WAIT_TABLE_ENTRIES; i++)
+		init_waitqueue_head(wait_table + i);
+	return 0;
+}"
+19,c,"static void wait_entry_unlocked(struct xa_state *xas, void *entry)
+{
+	struct wait_exceptional_entry_queue ewait;
+	wait_queue_head_t *wq;
+	init_wait(&ewait.wait);
+	ewait.wait.func = wake_exceptional_entry_func;
+	wq = dax_entry_waitqueue(xas, entry, &ewait.key);
+	prepare_to_wait(wq, &ewait.wait, TASK_UNINTERRUPTIBLE);
+	xas_unlock_irq(xas);
+	schedule();
+	finish_wait(wq, &ewait.wait);
+}"
+20,c,"static void put_unlocked_entry(struct xa_state *xas, void *entry)
+{
+	if (entry)
+		dax_wake_entry(xas, entry, false);
+}"
+21,c,"static void dax_unlock_entry(struct xa_state *xas, void *entry)
+{
+	void *old;
+	BUG_ON(dax_is_locked(entry));
+	xas_reset(xas);
+	xas_lock_irq(xas);
+	old = xas_store(xas, entry);
+	xas_unlock_irq(xas);
+	BUG_ON(!dax_is_locked(old));
+	dax_wake_entry(xas, entry, false);
+}"
+23,c,"static int aio_init_fs_context(struct fs_context *fc)
+{
+	if (!init_pseudo(fc, AIO_RING_MAGIC))
+		return -ENOMEM;
+	fc->s_iflags |= SB_I_NOEXEC;
+	return 0;
+}"
+24,c,"int dax_delete_mapping_entry(struct address_space *mapping, pgoff_t index)
+{
+	int ret = __dax_invalidate_entry(mapping, index, true);
+	WARN_ON_ONCE(!ret);
+	return ret;
+}"
+25,c,"unsigned long pgoff_address(pgoff_t pgoff, struct vm_area_struct *vma)
+{
+	unsigned long address;
+	address = vma->vm_start + ((pgoff - vma->vm_pgoff) << PAGE_SHIFT);
+	VM_BUG_ON_VMA(address < vma->vm_start || address >= vma->vm_end, vma);
+	return address;
+}"
+26,c,"static sector_t dax_iomap_sector(struct iomap *iomap, loff_t pos)
+{
+	return (iomap->addr + (pos & PAGE_MASK) - iomap->offset) >> 9;
+}"
+28,c,"fallback:
+	if (result == VM_FAULT_FALLBACK)
+	{
+		split_huge_pmd(vma, vmf->pmd, vmf->address);
+		count_vm_event(THP_FAULT_FALLBACK);
+	}"
+30,c,"void unregister_binfmt(struct linux_binfmt *fmt)
+{
+	write_lock(&binfmt_lock);
+	list_del(&fmt->lh);
+	write_unlock(&binfmt_lock);
+}"
+31,c,"EXPORT_SYMBOL(unregister_binfmt);
+static inline void put_binfmt(struct linux_binfmt *fmt)
+{
+	module_put(fmt->module);
+}
+bool path_noexec(const struct path *path)
+{
+	return (path->mnt->mnt_flags & MNT_NOEXEC) ||
+				 (path->mnt->mnt_sb->s_iflags & SB_I_NOEXEC);
+}"
+4,c,"pr_debug(""mmap address: 0x%08lx\n"", ctx->mmap_base);
+ctx->user_id = ctx->mmap_base;
+ctx->nr_events = nr_events; 
+ring = kmap_atomic(ctx->ring_pages[0]);
+ring->nr = nr_events; 
+ring->id = ~0U;
+ring->head = ring->tail = 0;
+ring->magic = AIO_RING_MAGIC;
+ring->compat_features = AIO_RING_COMPAT_FEATURES;
+ring->incompat_features = AIO_RING_INCOMPAT_FEATURES;
+ring->header_length = sizeof(struct aio_ring);"
+22,c,"if (entry) {
+  dax_lock_entry(xas, entry);
+} else {
+  entry = dax_make_entry(pfn_to_pfn_t(0), size_flag | DAX_EMPTY);
+  dax_lock_entry(xas, entry);
+  if (xas_error(xas))
+    goto out_unlock;
+  mapping->nrexceptional++;
+}"
+27,c,"pos = (loff_t)xas.xa_index << PAGE_SHIFT;
+error = ops->iomap_begin(inode, pos, PMD_SIZE, iomap_flags, &iomap);
+if (error)
+  goto unlock_entry;
+if (iomap.offset + iomap.length < pos + PMD_SIZE)
+  goto finish_iomap;"
+29,c,"switch (pe_size)
+{
+case PE_SIZE_PTE:
+  return dax_iomap_pte_fault(vmf, pfnp, iomap_errp, ops);
+case PE_SIZE_PMD:
+  return dax_iomap_pmd_fault(vmf, pfnp, ops);
+default:
+  return VM_FAULT_FALLBACK;
+}"
+32,c,"list_for_each_entry(fmt, &formats, lh)
+{
+  if (!fmt->load_shlib)
+    continue;
+  if (!try_module_get(fmt->module))
+    continue;
+  read_unlock(&binfmt_lock);
+  error = fmt->load_shlib(file);
+  read_lock(&binfmt_lock);
+  put_binfmt(fmt);
+  if (error != -ENOEXEC)
+    break;
+}"
+33,c,"static void acct_arg_size(struct linux_binprm *bprm, unsigned long pages)
+{
+	struct mm_struct *mm = current->mm;
+	long diff = (long)(pages - bprm->vma_pages);
+	if (!mm || !diff)
+		return;
+	bprm->vma_pages = pages;
+	add_mm_counter(mm, MM_ANONPAGES, diff);
+}"
+34,c,"static int __init aio_setup(void)
+{
+	static struct file_system_type aio_fs = {
+			.name = ""aio"",
+			.init_fs_context = aio_init_fs_context,
+			.kill_sb = kill_anon_super,
+	};
+	aio_mnt = kern_mount(&aio_fs);
+	if (IS_ERR(aio_mnt))
+		panic(""Failed to create aio fs mount."");
+	kiocb_cachep = KMEM_CACHE(aio_kiocb, SLAB_HWCACHE_ALIGN | SLAB_PANIC);
+	kioctx_cachep = KMEM_CACHE(kioctx, SLAB_HWCACHE_ALIGN | SLAB_PANIC);
+	aio_sysctl_init();
+	return 0;
+}"
+35,c,"static void free_arg_pages(struct linux_binprm *bprm)
+{
+	int i;
+	for (i = 0; i < MAX_ARG_PAGES; i++)
+		free_arg_page(bprm, i);
+}"
+37,c,"struct file *open_exec(const char *name)
+{
+	struct filename *filename = getname_kernel(name);
+	struct file *f = ERR_CAST(filename);
+	if (!IS_ERR(filename))
+	{
+		f = do_open_execat(AT_FDCWD, filename, 0);
+		putname(filename);
+	}
+	return f;
+}"
+38,c,"ssize_t read_code(struct file *file, unsigned long addr, loff_t pos, size_t len)
+{
+	ssize_t res = vfs_read(file, (void __user *)addr, len, &pos);
+	if (res > 0)
+		flush_icache_range(addr, addr + len);
+	return res;
+}"
+40,c,"#endif
+void set_binfmt(struct linux_binfmt *new)
+{
+	struct mm_struct *mm = current->mm;
+	if (mm->binfmt)
+		module_put(mm->binfmt->module);
+	mm->binfmt = new;
+	if (new)
+		__module_get(new->module);
+}"
+41,c,"EXPORT_SYMBOL(set_binfmt);
+void set_dumpable(struct mm_struct *mm, int value)
+{
+	if (WARN_ON((unsigned)value > SUID_DUMP_ROOT))
+		return;
+	set_mask_bits(&mm->flags, MMF_DUMPABLE_MASK, value);
+}"
+42,c,"static void __free_fdtable(struct fdtable *fdt)
+{
+	kvfree(fdt->fd);
+	kvfree(fdt->open_fds);
+	kfree(fdt);
+}"
+44,c,"int close_fd_get_file(unsigned int fd, struct file **res)
+{
+	struct files_struct *files = current->files;
+	int ret;
+	spin_lock(&files->file_lock);
+	ret = __close_fd_get_file(fd, res);
+	spin_unlock(&files->file_lock);
+	return ret;
+}"
+45,c,"static void put_aio_ring_file(struct kioctx *ctx)
+{
+	struct file *aio_ring_file = ctx->aio_ring_file;
+	struct address_space *i_mapping;
+	if (aio_ring_file)
+	{
+		truncate_setsize(file_inode(aio_ring_file), 0);
+		i_mapping = aio_ring_file->f_mapping;
+		spin_lock(&i_mapping->private_lock);
+		i_mapping->private_data = NULL;
+		ctx->aio_ring_file = NULL;
+		spin_unlock(&i_mapping->private_lock);
+		fput(aio_ring_file);
+	}
+}"
+46,c,"SYSCALL_DEFINE2(dup2, unsigned int, oldfd, unsigned int, newfd)
+{
+	if (unlikely(newfd == oldfd)) { 
+		struct files_struct *files = current->files;
+		int retval = oldfd;
+		rcu_read_lock();
+		if (!files_lookup_fd_rcu(files, oldfd))
+			retval = -EBADF;
+		rcu_read_unlock();
+		return retval;
+	}
+	return ksys_dup3(oldfd, newfd, 0);
+}"
+48,c,"struct sem_undo_list {
+	atomic_t		refcnt;
+	spinlock_t		lock;
+	struct list_head	list_proc;
+};"
+49,c,"static void sem_rcu_free(struct rcu_head *head)
+{
+	struct ipc_rcu *p = container_of(head, struct ipc_rcu, rcu);
+	struct sem_array *sma = ipc_rcu_to_struct(p);
+	security_sem_free(sma);
+	ipc_rcu_free(head);
+}"
+51,c,"static void aio_free_ring(struct kioctx *ctx)
+{
+	int i;
+	put_aio_ring_file(ctx);
+	for (i = 0; i < ctx->nr_pages; i++)
+	{
+		struct page *page;
+		pr_debug(""pid(%d) [%d] page->count=%d\n"", current->pid, i,
+						 page_count(ctx->ring_pages[i]));
+		page = ctx->ring_pages[i];
+		if (!page)
+			continue;
+		ctx->ring_pages[i] = NULL;
+		put_page(page);
+	}
+	if (ctx->ring_pages && ctx->ring_pages != ctx->internal_pages)
+	{
+		kfree(ctx->ring_pages);
+		ctx->ring_pages = NULL;
+	}
+}"
+53,c,"static int aio_ring_mmap(struct file *file, struct vm_area_struct *vma)
+{
+	vma->vm_flags |= VM_DONTEXPAND;
+	vma->vm_ops = &aio_ring_vm_ops;
+	return 0;
+}"
+55,cpp,"template <unsigned int BITS>
+base_uint<BITS>& base_uint<BITS>::operator<<=(unsigned int shift)
+{
+    base_uint<BITS> a(*this);
+    for (int i = 0; i < WIDTH; i++)
+        pn[i] = 0;
+    int k = shift / 32;
+    shift = shift % 32;
+    for (int i = 0; i < WIDTH; i++) {
+        if (i + k + 1 < WIDTH && shift != 0)
+            pn[i + k + 1] |= (a.pn[i] >> (32 - shift));
+        if (i + k < WIDTH)
+            pn[i + k] |= (a.pn[i] << shift);
+    }
+    return *this;
+}"
+56,cpp,"template <unsigned int BITS>
+base_uint<BITS>& base_uint<BITS>::operator>>=(unsigned int shift)
+{
+    base_uint<BITS> a(*this);
+    for (int i = 0; i < WIDTH; i++)
+        pn[i] = 0;
+    int k = shift / 32;
+    shift = shift % 32;
+    for (int i = 0; i < WIDTH; i++) {
+        if (i - k - 1 >= 0 && shift != 0)
+            pn[i - k - 1] |= (a.pn[i] << (32 - shift));
+        if (i - k >= 0)
+            pn[i - k] |= (a.pn[i] >> shift);
+    }
+    return *this;
+}"
+57,cpp,"template <unsigned int BITS>
+base_uint<BITS>& base_uint<BITS>::operator*=(uint32_t b32)
+{
+    uint64_t carry = 0;
+    for (int i = 0; i < WIDTH; i++) {
+        uint64_t n = carry + (uint64_t)b32 * pn[i];
+        pn[i] = n & 0xffffffff;
+        carry = n >> 32;
+    }
+    return *this;
+}"
+58,cpp,"template <unsigned int BITS>
+void base_uint<BITS>::SetHex(const std::string& str)
+{
+    SetHex(str.c_str());
+}
+template <unsigned int BITS>
+std::string base_uint<BITS>::ToString() const
+{
+    return GetHex();
+}"
+59,cpp,"template <unsigned int BITS>
+unsigned int base_uint<BITS>::bits() const
+{
+    for (int pos = WIDTH - 1; pos >= 0; pos--) {
+        if (pn[pos]) {
+            for (int nbits = 31; nbits > 0; nbits--) {
+                if (pn[pos] & 1U << nbits)
+                    return 32 * pos + nbits + 1;
+            }
+            return 32 * pos + 1;
+        }
+    }
+    return 0;
+}"
+60,cpp,"arith_uint256 UintToArith256(const uint256 &a)
+{
+    arith_uint256 b;
+    for(int x=0; x<b.WIDTH; ++x)
+        b.pn[x] = ReadLE32(a.begin() + x*4);
+    return b;
+}"
+61,cpp,"TypeAttrKind TypeAttributes::getAttrKindFromString(StringRef Str) {
+  return llvm::StringSwitch<TypeAttrKind>(Str)
+#define TYPE_ATTR(X) .Case(#X, TAK_##X)
+#include ""swift/AST/Attr.def""
+  .Default(TAK_Count);
+}"
+62,cpp,"TypeLoc ImplementsAttr::getProtocolType() const {
+  return ProtocolType;
+}
+TypeLoc &ImplementsAttr::getProtocolType() {
+  return ProtocolType;
+}"
+63,cpp,"BitcoinApplication::~BitcoinApplication()
+{
+    m_executor.reset();
+    delete window;
+    window = nullptr;
+    delete platformStyle;
+    platformStyle = nullptr;
+}"
+64,cpp,"void BitcoinApplication::createWindow(const NetworkStyle *networkStyle)
+{
+    window = new BitcoinGUI(node(), platformStyle, networkStyle, nullptr);
+    connect(window, &BitcoinGUI::quitRequested, this, &BitcoinApplication::requestShutdown);
+    pollShutdownTimer = new QTimer(window);
+    connect(pollShutdownTimer, &QTimer::timeout, [this]{
+        if (!QApplication::activeModalWidget()) {
+            window->detectShutdown();
+        }
+    });
+}"
+65,cpp,"void BitcoinApplication::createNode(interfaces::Init& init)
+{
+    assert(!m_node);
+    m_node = init.makeNode();
+    if (m_splash) m_splash->setNode(*m_node);
+}"
+66,cpp,"void BitcoinApplication::parameterSetup()
+{
+    gArgs.SoftSetBoolArg(""-printtoconsole"", false);
+    InitLogging(gArgs);
+    InitParameterInteraction(gArgs);
+}"
+69,cpp,"BENCHMARK(LoggingYoThreadNames, benchmark::PriorityLevel::HIGH);
+BENCHMARK(LoggingNoThreadNames, benchmark::PriorityLevel::HIGH);
+BENCHMARK(LoggingYoCategory, benchmark::PriorityLevel::HIGH);
+BENCHMARK(LoggingNoCategory, benchmark::PriorityLevel::HIGH);
+BENCHMARK(LoggingNoFile, benchmark::PriorityLevel::HIGH);"
+70,cpp,"void inline Initialize(uint32_t* s)
+{
+    s[0] = 0x6a09e667ul;
+    s[1] = 0xbb67ae85ul;
+    s[2] = 0x3c6ef372ul;
+    s[3] = 0xa54ff53aul;
+    s[4] = 0x510e527ful;
+    s[5] = 0x9b05688cul;
+    s[6] = 0x1f83d9abul;
+    s[7] = 0x5be0cd19ul;
+}"
+71,cpp,"#if defined(__aarch64__) 
+    if (getauxval(AT_HWCAP) & HWCAP_SHA2) {
+        have_arm_shani = true;
+    }
+#endif"
+72,cpp,"#if defined(MAC_OSX)
+    int val = 0;
+    size_t len = sizeof(val);
+    if (sysctlbyname(""hw.optional.arm.FEAT_SHA256"", &val, &len, nullptr, 0) == 0) {
+        have_arm_shani = val != 0;
+    }
+#endif"
+73,cpp,"CSHA256::CSHA256() : bytes(0)
+{
+    sha256::Initialize(s);
+}"
+74,cpp,"StringRef Stmt::getKindName(StmtKind K) {
+  switch (K) {
+#define STMT(Id, Parent) case StmtKind::Id: return #Id;
+#include ""swift/AST/StmtNodes.def""
+  }
+  llvm_unreachable(""bad StmtKind"");
+}"
+75,cpp,"template <class T> static SourceRange getSourceRangeImpl(const T *S) {
+  static_assert(isOverriddenFromStmt(&T::getSourceRange) ||
+                (isOverriddenFromStmt(&T::getStartLoc) &&
+                 isOverriddenFromStmt(&T::getEndLoc)),
+                ""Stmt subclass must implement either getSourceRange() ""
+                ""or getStartLoc()/getEndLoc()"");
+  return Dispatch<isOverriddenFromStmt(&T::getSourceRange)>::getSourceRange(S);
+}"
+76,cpp,"public:
+  SourceFileOrModule(SourceFile &SF) : SFOrMod(&SF) {}
+  SourceFileOrModule(ModuleDecl &Mod) : SFOrMod(&Mod) {}
+  SourceFile *getAsSourceFile() const {
+    return SFOrMod.dyn_cast<SourceFile *>();
+  }"
+85,cpp,"void IndexSwiftASTWalker::visitDeclContext(DeclContext *Context) {
+  IsModuleFile = false;
+  isSystemModule = Context->getParentModule()->isSystemModule();
+  walk(Context);
+}"
+86,cpp,"bool IndexSwiftASTWalker::startEntity(Decl *D, IndexSymbol &Info) {
+  switch (IdxConsumer.startSourceEntity(Info)) {
+    case swift::index::IndexDataConsumer::Abort:
+      Cancelled = true;
+      LLVM_FALLTHROUGH;
+    case swift::index::IndexDataConsumer::Skip:
+      return false;
+    case swift::index::IndexDataConsumer::Continue:
+      EntitiesStack.push_back({D, Info.symInfo, Info.roles, {}});
+      return true;
+  }
+  llvm_unreachable(""Unhandled IndexDataConsumer in switch."");
+}"
+93,csharp,"#region License Information (GPL v3)
+#endregion License Information (GPL v3)
+using Newtonsoft.Json;
+using System;
+namespace ShareX
+{
+    public class NewsItem
+    {
+        public DateTime DateTime { get; set; }
+        public string Text { get; set; }
+        public string URL { get; set; }
+        [JsonIgnore]
+        public bool IsUnread { get; set; }
+    }
+}"
+96,csharp,"builder.Services
+    .AddHealthChecksUI()
+    .AddInMemoryStorage();
+var app = builder.Build();
+if (!app.Environment.IsDevelopment())
+{
+    app.UseExceptionHandler(""/Home/Error"");
+}
+var pathBase = app.Configuration[""PATH_BASE""];
+if (!string.IsNullOrEmpty(pathBase))
+{
+    app.UsePathBase(pathBase);
+}"
+101,go,"package types
+import (
+	""bytes""
+	""fmt""
+	""go/ast""
+	""go/constant""
+	""go/token""
+)
+const allowTypeLists = false
+type Error struct {
+	Fset *token.FileSet 
+	Pos  token.Pos      
+	Msg  string         
+	Soft bool           
+	go116code  errorCode
+	go116start token.Pos
+	go116end   token.Pos
+}"
+102,go,"func (err Error) Error() string {
+	return fmt.Sprintf(""%s: %s"", err.Fset.Position(err.Pos), err.Msg)
+}
+type ArgumentError struct {
+	Index int
+	Err   error
+}"
+103,go,"func (e *ArgumentError) Error() string { return e.Err.Error() }
+func (e *ArgumentError) Unwrap() error { return e.Err }
+type Importer interface {
+	Import(path string) (*Package, error)
+}
+type ImportMode int
+type ImporterFrom interface {
+	Importer
+	ImportFrom(path, dir string, mode ImportMode) (*Package, error)
+}"
+104,go,"type Info struct {
+	Types map[ast.Expr]TypeAndValue
+	Instances map[*ast.Ident]Instance
+	Defs map[*ast.Ident]Object
+	Uses map[*ast.Ident]Object
+	Implicits map[ast.Node]Object
+	Selections map[*ast.SelectorExpr]*Selection
+	Scopes map[ast.Node]*Scope
+	InitOrder []*Initializer
+}"
+105,go,"func (info *Info) TypeOf(e ast.Expr) Type {
+	if t, ok := info.Types[e]; ok {
+		return t.Type
+	}
+	if id, _ := e.(*ast.Ident); id != nil {
+		if obj := info.ObjectOf(id); obj != nil {
+			return obj.Type()
+		}
+	}
+	return nil
+}"
+106,go,"func (info *Info) ObjectOf(id *ast.Ident) Object {
+	if obj := info.Defs[id]; obj != nil {
+		return obj
+	}
+	return info.Uses[id]
+}"
+107,go,"type TypeAndValue struct {
+	mode  operandMode
+	Type  Type
+	Value constant.Value
+}
+func (tv TypeAndValue) IsVoid() bool {
+	return tv.mode == novalue
+}"
+108,go,"func (tv TypeAndValue) IsType() bool {
+	return tv.mode == typexpr
+}
+func (tv TypeAndValue) IsBuiltin() bool {
+	return tv.mode == builtin
+}"
+109,go,"func (tv TypeAndValue) IsValue() bool {
+	switch tv.mode {
+	case constant_, variable, mapindex, value, commaok, commaerr:
+		return true
+	}
+	return false
+}
+func (tv TypeAndValue) IsNil() bool {
+	return tv.mode == value && tv.Type == Typ[UntypedNil]
+}
+func (tv TypeAndValue) Addressable() bool {
+	return tv.mode == variable
+}"
+110,go,"type Instance struct {
+	TypeArgs *TypeList
+	Type     Type
+}
+type Initializer struct {
+	Lhs []*Var 
+	Rhs ast.Expr
+}"
+111,go,"func Identical(x, y Type) bool {
+	return identical(x, y, true, nil)
+}
+func IdenticalIgnoreTags(x, y Type) bool {
+	return identical(x, y, false, nil)
+}"
+113,go,"func (c *Comment) Pos() token.Pos { return c.Slash }
+func (c *Comment) End() token.Pos { return token.Pos(int(c.Slash) + len(c.Text)) }
+type CommentGroup struct {
+	List []*Comment 
+}"
+114,go,"func stripTrailingWhitespace(s string) string {
+	i := len(s)
+	for i > 0 && isWhitespace(s[i-1]) {
+		i--
+	}
+	return s[0:i]
+}"
+112,go,"package ast
+import (
+	""go/token""
+	""strings""
+	""unicode""
+	""unicode/utf8""
+)
+type Node interface {
+	Pos() token.Pos
+	End() token.Pos
+}
+type Expr interface {
+	Node
+	exprNode()
+}"
+116,go,"func (f *FieldList) End() token.Pos {
+	if f.Closing.IsValid() {
+		return f.Closing + 1
+	}
+	if n := len(f.List); n > 0 {
+		return f.List[n-1].End()
+	}
+	return token.NoPos
+}"
+117,go,"func (x *BadExpr) Pos() token.Pos  { return x.From }
+func (x *Ident) Pos() token.Pos    { return x.NamePos }
+func (x *Ellipsis) Pos() token.Pos { return x.Ellipsis }
+func (x *BasicLit) Pos() token.Pos { return x.ValuePos }
+func (x *FuncLit) Pos() token.Pos  { return x.Type.Pos() }
+func (x *CompositeLit) Pos() token.Pos {
+	if x.Type != nil {
+		return x.Type.Pos()
+	}
+	return x.Lbrace
+}"
+118,go,"func (s *BlockStmt) End() token.Pos { return s.Rbrace + 1 }
+func (s *IfStmt) End() token.Pos {
+	if s.Else != nil {
+		return s.Else.End()
+	}
+	return s.Body.End()
+}
+func (s *CaseClause) End() token.Pos {
+	if n := len(s.Body); n > 0 {
+		return s.Body[n-1].End()
+	}
+	return s.Colon + 1
+}"
+119,go,"func isObject(s string) bool {
+	f, err := os.Open(s)
+	if err != nil {
+		return false
+	}
+	defer f.Close()
+	buf := make([]byte, 64)
+	io.ReadFull(f, buf)
+	for _, magic := range objectMagic {
+		if bytes.HasPrefix(buf, magic) {
+			return true
+		}
+	}
+	return false
+}"
+120,go,"func (b *builder) processOutput(out []byte) string {
+	if out[len(out)-1] != '\n' {
+		out = append(out, '\n')
+	}
+	messages := string(out)
+	if !buildX && cgoLine.MatchString(messages) {
+		messages = cgoLine.ReplaceAllString(messages, """")
+		messages = cgoTypeSigRe.ReplaceAllString(messages, ""C."")
+	}
+	return messages
+}"
+121,go,"func gccgoCleanPkgpath(p *Package) string {
+	clean := func(r rune) rune {
+		switch {
+		case 'A' <= r && r <= 'Z', 'a' <= r && r <= 'z',
+			'0' <= r && r <= '9':
+			return r
+		}
+		return '_'
+	}
+	return strings.Map(clean, gccgoPkgpath(p))
+}"
+122,go,"const primeRK = 16777619
+func hashStr(sep []byte) (uint32, uint32) {
+	hash := uint32(0)
+	for i := 0; i < len(sep); i++ {
+		hash = hash*primeRK + uint32(sep[i])
+	}
+	var pow, sq uint32 = 1, primeRK
+	for i := len(sep); i > 0; i >>= 1 {
+		if i&1 != 0 {
+			pow *= sq
+		}
+		sq *= sq
+	}
+	return hash, pow
+}"
+123,go,"func progMachine(p *syntax.Prog, op *onePassProg) *machine {
+	m := &machine{p: p, op: op}
+	n := len(m.p.Inst)
+	m.q0 = queue{make([]uint32, n), make([]entry, 0, n)}
+	m.q1 = queue{make([]uint32, n), make([]entry, 0, n)}
+	ncap := p.NumCap
+	if ncap < 2 {
+		ncap = 2
+	}
+	if op == notOnePass {
+		m.maxBitStateLen = maxBitStateLen(p)
+	}
+	m.matchcap = make([]int, ncap)
+	return m
+}"
+124,go,"type netFD struct {
+	pfd poll.FD
+	family      int
+	sotype      int
+	isConnected bool
+	net         string
+	laddr       Addr
+	raddr       Addr
+}"
+125,go,"func (fd *netFD) dup() (f *os.File, err error) {
+	ns, err := dupCloseOnExec(fd.pfd.Sysfd)
+	if err != nil {
+		return nil, err
+	}
+	return os.NewFile(uintptr(ns), fd.name()), nil
+}"
+126,go,"func rename(oldname, newname string) error {
+	fi, err := Lstat(newname)
+	if err == nil && fi.IsDir() {
+		return &LinkError{""rename"", oldname, newname, syscall.EEXIST}
+	}
+	e := syscall.Rename(oldname, newname)
+	if e != nil {
+		return &LinkError{""rename"", oldname, newname, e}
+	}
+	return nil
+}"
+127,go,"func (p *Package) recordTypedefs(dtype dwarf.Type, pos token.Pos) {
+	p.recordTypedefs1(dtype, pos, map[dwarf.Type]bool{})
+}"
+128,go,"func removeEmptyPort(host string) string {
+	if hasPort(host) {
+		return strings.TrimSuffix(host, "":"")
+	}
+	return host
+}"
+129,go,"var ErrShortWrite = errors.New(""short write"")
+var errInvalidWrite = errors.New(""invalid write result"")
+var ErrShortBuffer = errors.New(""short buffer"")
+var EOF = errors.New(""EOF"")
+var ErrUnexpectedEOF = errors.New(""unexpected EOF"")
+var ErrNoProgress = errors.New(""multiple Read calls return no data or error"")"
+130,go,"type Reader interface {
+	Read(p []byte) (n int, err error)
+}
+type Writer interface {
+	Write(p []byte) (n int, err error)
+}
+type Closer interface {
+	Close() error
+}
+type Seeker interface {
+	Seek(offset int64, whence int) (int64, error)
+}"
+131,go,"func LookupNS(name string) (nss []*NS, err error) {
+	return lookupNS(name)
+}
+func LookupTXT(name string) (txts []string, err error) {
+	return lookupTXT(name)
+}
+func LookupAddr(addr string) (names []string, err error) {
+	return lookupAddr(addr)
+}"
+132,go,"type PacketConn interface {
+	ReadFrom(b []byte) (n int, addr Addr, err error)
+	WriteTo(b []byte, addr Addr) (n int, err error)
+	Close() error
+	LocalAddr() Addr
+	SetDeadline(t time.Time) error
+	SetReadDeadline(t time.Time) error
+	SetWriteDeadline(t time.Time) error
+}"
+133,go,"package time
+func Sleep(d Duration)
+type runtimeTimer struct {
+	tb uintptr
+	i  int
+	pp uintptr
+	when     int64
+	period   int64
+	f        func(interface{}, uintptr) 
+	arg      interface{}
+	seq      uintptr
+	nextwhen int64
+	status   uint32
+}"
+134,go,"func isAllArray(typ reflect.Type) bool {
+	switch typ.Kind() {
+	case reflect.String:
+		return false
+	case reflect.Slice:
+		return false
+	case reflect.Array:
+		return isAllArray(typ.Elem())
+	default:
+		return true
+	}
+}"
+135,go,"func (t *Tensor) WriteContentsTo(w io.Writer) (int64, error) {
+	if err := isTensorSerializable(t.DataType()); err != nil {
+		return 0, err
+	}
+	return io.Copy(w, bytes.NewReader(tensorData(t.c)))
+}"
+136,go,"type sliceHeader struct {
+	Data unsafe.Pointer
+	Len  int
+	Cap  int
+}"
+137,go,"func poll_runtimeNano() int64 {
+	return nanotime()
+}
+func time_runtimeNano() int64 {
+	return nanotime()
+}
+var startNano int64 = nanotime()"
+138,go,"type UDPAddr struct {
+	IP   IP
+	Port int
+	Zone string 
+}"
+139,html,"</div>
+</div>
+<script type=""text/javascript"" src=""./jquery.js""></script>
+<script type=""text/javascript"" src=""./sh_main.js""></script>
+<script type=""text/javascript"" src=""./sh_javascript.min.js""></script>
+<script type=""text/javascript"" src=""./doc.js""></script>
+</body>
+</html>"
+141,html,"</head>
+  <body>
+    <div class=""container"">
+      <div class=""lesson-title"">
+        <h1>Cleanup</h1>
+      </div>"
+142,html,"<li>
+Menu 1
+<ul>
+  <li>Menu 1-1</li>
+  <li>Menu 1-2</li>
+  <li>Menu 1-3</li>
+</ul>
+</li>"
+151,html,"<head>
+  <title>{{section}}Node.js Manual &amp; Documentation</title>
+  <link rel=""stylesheet"" href=""assets/style.css"" type=""text/css"" media=""all"" />
+  <link rel=""stylesheet"" href=""assets/sh.css"" type=""text/css"" media=""all""/>
+</head>"
+160,java,"import lombok.extern.slf4j.Slf4j;
+@Slf4j
+public class Guard implements Permission {
+  protected void enter() {
+    LOGGER.info(""You can enter"");
+  }
+}"
+168,java,"import java.math.BigInteger;
+import java.util.Scanner;
+public class Modex {
+	public static void main(String[] args) {
+		Scanner input = new Scanner(System.in);
+		int numberOfTestCases = input.nextInt();
+		while (numberOfTestCases != 0) {
+			BigInteger x = input.nextBigInteger();
+			BigInteger y = input.nextBigInteger();
+			BigInteger n = input.nextBigInteger();
+			BigInteger result = x.modPow(y, n);
+			System.out.println(result);
+			numberOfTestCases--;
+		}
+	}
+}"
+172,java,"public abstract class Ticker {
+  protected Ticker() {}
+  public abstract long read();
+  public static Ticker systemTicker() {
+    return SYSTEM_TICKER;
+  }"
+152,java,"public MinStack() {
+  _data = new Stack<>();
+  _min = new Stack<>();
+}
+public void push(int x) {
+  _data.add(x);
+  if (_min.isEmpty()){
+      _min.push(x);
+  }
+  else{
+      if (x > _min.peek()){
+          x = _min.peek();
+      }
+      _min.push(x);
+  }
+}"
+153,java,"class Solution2 {
+  public int searchInsert(int[] nums, int target) {
+      if (target>nums[nums.length-1]) {
+          return nums.length;
+      }
+      int left=0;
+      int right=nums.length-1;
+      while (left < right) {
+          int mid = (left + right) / 2;
+          if (nums[mid] < target) {
+              left = mid + 1;
+          } else {
+              right = mid;
+          }
+      }
+      return left;
+  }
+}"
+158,java,"@SuppressWarnings(""unchecked"")
+public static <E extends @Nullable Object> Function<E, E> identity() {
+  return (Function<E, E>) IdentityFunction.INSTANCE;
+}"
+162,java,"public Options setAllowFp16PrecisionForFp32(boolean allow) {
+  this.allowFp16PrecisionForFp32 = allow;
+  return this;
+}
+@Override
+public Options addDelegate(Delegate delegate) {
+  super.addDelegate(delegate);
+  return this;
+}
+@Override
+public Options addDelegateFactory(DelegateFactory delegateFactory) {
+  super.addDelegateFactory(delegateFactory);
+  return this;
+}"
+163,java,"public void runSignature(
+  @NonNull Map<String, Object> inputs, @NonNull Map<String, Object> outputs) {
+checkNotClosed();
+runSignature(inputs, outputs, null);
+}"
+164,java,"public String[] getSignatureKeys() {
+  checkNotClosed();
+  return wrapper.getSignatureKeys();
+}
+public String[] getSignatureInputs(String signatureKey) {
+  checkNotClosed();
+  return wrapper.getSignatureInputs(signatureKey);
+}"
+165,java,"public void resetVariableTensors() {
+  checkNotClosed();
+  wrapperExperimental.resetVariableTensors();
+}
+public void setCancelled(boolean cancelled) {
+  wrapper.setCancelled(cancelled);
+}"
+166,java,"public void testJavaVersion() throws Exception {
+  String exp = System.getenv(""KOKORO_JAVA_VERSION"");
+  if(exp == null || exp.isEmpty()) {
+    System.err.println(""No kokoro java version found, skipping check"");
+    return;
+  }
+  if (exp.equals(""8"")) exp = ""1.8"";
+  String version = System.getProperty(""java.version"");
+  assertWithMessage(""Expected Java "" + exp + "" but found Java "" + version)
+      .that(version.startsWith(exp))
+      .isTrue();
+}"
+169,java,"private static final boolean DEBUG =
+System.getProperty(""org.tensorflow.NativeLibrary.DEBUG"") != null;
+private static final String JNI_LIBNAME = ""tensorflow_jni"";
+public static void load() {
+if (isLoaded() || tryLoadLibrary()) {
+return;
+}
+final String jniLibName = System.mapLibraryName(JNI_LIBNAME);
+final String jniResourceName = makeResourceName(jniLibName);
+log(""jniResourceName: "" + jniResourceName);"
+170,java,"@Override
+public String toString() {
+  if (shape == null) {
+    return ""<unknown>"";
+  }
+  return Arrays.toString(shape).replace(""-1"", ""?"");
+}
+Shape(long[] shape) {
+  this.shape = shape;
+}
+long[] asArray() {
+  return shape;
+}
+private long[] shape;"
+171,java,"private static final Ticker SYSTEM_TICKER =
+new Ticker() {
+  @Override
+  @SuppressWarnings(""GoodTime"")
+  public long read() {
+    return System.nanoTime();
+  }
+};"
+174,javascript,"let builds = require('./config').getAllBuilds()
+if (process.argv[2]) {
+  const filters = process.argv[2].split(',')
+  builds = builds.filter(b => {
+    return filters.some(f => b.output.file.indexOf(f) > -1 || b._name.indexOf(f) > -1)
+  })
+}"
+175,javascript,"function build (builds) {
+  let built = 0
+  const total = builds.length
+  const next = () => {
+    buildEntry(builds[built]).then(() => {
+      built++
+      if (built < total) {
+        next()
+      }
+    }).catch(logError)
+  }
+  next()
+}"
+176,javascript,"function getSize (code) {
+  return (code.length / 1024).toFixed(2) + 'kb'
+}
+function logError (e) {
+  console.log(e)
+}
+function blue (str) {
+  return '\x1b[1m\x1b[34m' + str + '\x1b[39m\x1b[22m'
+}"
+177,javascript,"'use strict';
+const bootstrap = require('./bootstrap');
+const bootstrapNode = require('./bootstrap-node');
+const product = require('../product.json');
+bootstrap.avoidMonkeyPatchFromAppInsights();
+bootstrapNode.configurePortable(product);
+bootstrap.enableASARSupport(undefined);
+process.env['VSCODE_CLI'] = '1';
+require('./bootstrap-amd').load('vs/code/node/cli');"
+178,javascript,"function maybeCallback(cb) {
+  return util.isFunction(cb) ? cb : rethrow();
+}
+function makeCallback(cb) {
+  if (!util.isFunction(cb)) {
+    return rethrow();
+  }
+  return function() {
+    return cb.apply(null, arguments);
+  };
+}"
+179,javascript,"function assertEncoding(encoding) {
+  if (encoding && !Buffer.isEncoding(encoding)) {
+    throw new Error('Unknown encoding: ' + encoding);
+  }
+}"
+180,javascript,"fs.Stats = binding.Stats;
+fs.Stats.prototype._checkModeProperty = function(property) {
+  return ((this.mode & constants.S_IFMT) === property);
+};
+fs.Stats.prototype.isDirectory = function() {
+  return this._checkModeProperty(constants.S_IFDIR);
+};
+fs.Stats.prototype.isFile = function() {
+  return this._checkModeProperty(constants.S_IFREG);
+};"
+181,javascript,"fs.Stats.prototype.isSymbolicLink = function() {
+  return this._checkModeProperty(constants.S_IFLNK);
+};
+fs.Stats.prototype.isFIFO = function() {
+  return this._checkModeProperty(constants.S_IFIFO);
+};
+fs.Stats.prototype.isSocket = function() {
+  return this._checkModeProperty(constants.S_IFSOCK);
+};"
+182,javascript,"fs.exists = function(path, callback) {
+  if (!nullCheck(path, cb)) return;
+  binding.stat(pathModule._makeLong(path), cb);
+  function cb(err, stats) {
+    if (callback) callback(err ? false : true);
+  }
+};"
+183,javascript,"fs.existsSync = function(path) {
+  try {
+    nullCheck(path);
+    binding.stat(pathModule._makeLong(path));
+    return true;
+  } catch (e) {
+    return false;
+  }
+};"
+184,javascript,"fs.readFile = function(path, options, callback_) {
+  var callback = maybeCallback(arguments[arguments.length - 1]);
+  if (util.isFunction(options) || !options) {
+    options = { encoding: null, flag: 'r' };
+  } else if (util.isString(options)) {
+    options = { encoding: options, flag: 'r' };
+  } else if (!util.isObject(options)) {
+    throw new TypeError('Bad arguments');
+  }"
+186,javascript,"fs.renameSync = function(oldPath, newPath) {
+  nullCheck(oldPath);
+  nullCheck(newPath);
+  return binding.rename(pathModule._makeLong(oldPath),
+                        pathModule._makeLong(newPath));
+};"
+187,javascript,"fs.fdatasync = function(fd, callback) {
+  binding.fdatasync(fd, makeCallback(callback));
+};
+fs.fdatasyncSync = function(fd) {
+  return binding.fdatasync(fd);
+};
+fs.fsync = function(fd, callback) {
+  binding.fsync(fd, makeCallback(callback));
+};
+fs.fsyncSync = function(fd) {
+  return binding.fsync(fd);
+};"
+188,javascript,"fs.link = function(srcpath, dstpath, callback) {
+  callback = makeCallback(callback);
+  if (!nullCheck(srcpath, callback)) return;
+  if (!nullCheck(dstpath, callback)) return;
+  binding.link(pathModule._makeLong(srcpath),
+               pathModule._makeLong(dstpath),
+               callback);
+};"
+189,javascript,"fs.chmod = function(path, mode, callback) {
+  callback = makeCallback(callback);
+  if (!nullCheck(path, callback)) return;
+  binding.chmod(pathModule._makeLong(path),
+                modeNum(mode),
+                callback);
+};"
+190,javascript,"fs.chmodSync = function(path, mode) {
+  nullCheck(path);
+  return binding.chmod(pathModule._makeLong(path), modeNum(mode));
+};"
+191,javascript,"perf.mark('code/didStartCrashReporter');
+if (portable && portable.isPortable) {
+	app.setAppLogsPath(path.join(userDataPath, 'logs'));
+}"
+192,javascript,"registerListeners();
+let nlsConfigurationPromise = undefined;
+const resolved = app.getPreferredSystemLanguages()?.[0] ?? 'en';
+const osLocale = processZhLocale(resolved.toLowerCase());
+const metaDataFile = path.join(__dirname, 'nls.metadata.json');
+const locale = getUserDefinedLocale(argvConfig);"
+193,javascript,"function startup(codeCachePath, nlsConfig) {
+	nlsConfig._languagePackSupport = true;
+	process.env['VSCODE_NLS_CONFIG'] = JSON.stringify(nlsConfig);
+	process.env['VSCODE_CODE_CACHE_PATH'] = codeCachePath || '';
+	perf.mark('code/willLoadMainBundle');
+	require('./bootstrap-amd').load('vs/code/electron-main/main', () => {
+		perf.mark('code/didLoadMainBundle');
+	});
+}"
+194,javascript,"function registerListeners() {
+	const macOpenFiles = [];
+	global['macOpenFiles'] = macOpenFiles;
+	app.on('open-file', function (event, path) {
+		macOpenFiles.push(path);
+	});
+	const openUrls = [];
+	const onOpenUrl =
+		function (event, url) {
+			event.preventDefault();
+			openUrls.push(url);
+		};
+	app.on('will-finish-launching', function () {
+		app.on('open-url', onOpenUrl);
+	});
+	global['getOpenUrls'] = function () {
+		app.removeListener('open-url', onOpenUrl);
+		return openUrls;
+	};
+}"
+195,javascript,"function processZhLocale(appLocale) {
+	if (appLocale.startsWith('zh')) {
+		const region = appLocale.split('-')[1];
+		if (['hans', 'cn', 'sg', 'my'].includes(region)) {
+			return 'zh-cn';
+		}
+		return 'zh-tw';
+	}
+	return appLocale;
+}"
+196,javascript,"function noop() {}
+function createPipe() {
+  var Pipe = process.binding('pipe_wrap').Pipe;
+  return new Pipe();
+}
+function createTCP() {
+  var TCP = process.binding('tcp_wrap').TCP;
+  return new TCP();
+}"
+197,javascript,"function createHandle(fd) {
+  var tty = process.binding('tty_wrap');
+  var type = tty.guessHandleType(fd);
+  if (type === 'PIPE') return createPipe();
+  if (type === 'TCP') return createTCP();
+  throw new TypeError('Unsupported fd type: ' + type);
+}"
+198,javascript,"var debug = util.debuglog('net');
+function isPipeName(s) {
+  return util.isString(s) && toNumber(s) === false;
+}
+exports.createServer = function() {
+  return new Server(arguments[0], arguments[1]);
+};"
+199,javascript,"exports.connect = exports.createConnection = function() {
+  var args = normalizeConnectArgs(arguments);
+  debug('createConnection', args);
+  var s = new Socket(args[0]);
+  return Socket.prototype.connect.apply(s, args);
+};"
+200,javascript,"exports._normalizeConnectArgs = normalizeConnectArgs;
+function initSocketHandle(self) {
+  self.destroyed = false;
+  self.bytesRead = 0;
+  self._bytesDispatched = 0;
+  if (self._handle) {
+    self._handle.owner = self;
+    self._handle.onread = onread;
+    if (!self._handle.writev)
+      self._writev = null;
+  }
+}"
+201,javascript,"function afterShutdown(status, handle, req) {
+  var self = handle.owner;
+  debug('afterShutdown destroyed=%j', self.destroyed,
+        self._readableState);
+  if (self.destroyed)
+    return;
+  if (self._readableState.ended) {
+    debug('readableState ended, destroying');
+    self.destroy();
+  } else {
+    self.once('_socketEnd', self.destroy);
+  }
+}"
+202,javascript,"function onSocketEnd() {
+  debug('onSocketEnd', this._readableState);
+  this._readableState.ended = true;
+  if (this._readableState.endEmitted) {
+    this.readable = false;
+    maybeDestroy(this);
+  } else {
+    this.once('end', function() {
+      this.readable = false;
+      maybeDestroy(this);
+    });
+    this.read(0);
+  }
+  if (!this.allowHalfOpen) {
+    this.write = writeAfterFIN;
+    this.destroySoon();
+  }
+}"
+203,javascript,"exports.Socket = Socket;
+exports.Stream = Socket; 
+Socket.prototype.read = function(n) {
+  if (n === 0)
+    return stream.Readable.prototype.read.call(this, n);
+  this.read = stream.Readable.prototype.read;
+  this._consuming = true;
+  return this.read(n);
+};"
+204,javascript,"Socket.prototype.listen = function() {
+  debug('socket.listen');
+  var self = this;
+  self.on('connection', arguments[0]);
+  listen(self, null, null, null);
+};"
+205,javascript,"Socket.prototype._onTimeout = function() {
+  debug('_onTimeout');
+  this.emit('timeout');
+};
+Socket.prototype.setNoDelay = function(enable) {
+  if (this._handle && this._handle.setNoDelay)
+    this._handle.setNoDelay(util.isUndefined(enable) ? true : !!enable);
+};"
+206,javascript,"Object.defineProperty(Socket.prototype, 'readyState', {
+  get: function() {
+    if (this._connecting) {
+      return 'opening';
+    } else if (this.readable && this.writable) {
+      return 'open';
+    } else if (this.readable && !this.writable) {
+      return 'readOnly';
+    } else if (!this.readable && this.writable) {
+      return 'writeOnly';
+    } else {
+      return 'closed';
+    }
+  }
+});"
+207,javascript,"Object.defineProperty(Socket.prototype, 'bufferSize', {
+  get: function() {
+    if (this._handle) {
+      return this._handle.writeQueueSize + this._writableState.length;
+    }
+  }
+});"
+208,javascript,"function maybeDestroy(socket) {
+  if (!socket.readable &&
+      !socket.writable &&
+      !socket.destroyed &&
+      !socket._connecting &&
+      !socket._writableState.length) {
+    socket.destroy();
+  }
+}"
+209,javascript,"Socket.prototype.destroySoon = function() {
+  if (this.writable)
+    this.end();
+  if (this._writableState.finished)
+    this.destroy();
+  else
+    this.once('finish', this.destroy);
+};"
+210,javascript,"Server.prototype._emitCloseIfDrained = function() {
+  debug('SERVER _emitCloseIfDrained');
+  var self = this;
+  if (self._handle || self._connections) {
+    debug('SERVER handle? %j   connections? %d',
+          !!self._handle, self._connections);
+    return;
+  }
+  process.nextTick(function() {
+    debug('SERVER: emit close');
+    self.emit('close');
+  });
+};"
+211,javascript,"Server.prototype.listenFD = util.deprecate(function(fd, type) {
+  return this.listen({ fd: fd });
+}, 'listenFD is deprecated. Use listen({fd: <number>}).');
+Server.prototype._setupSlave = function(socketList) {
+  this._usingSlaves = true;
+  this._slaves.push(socketList);
+};"
+212,javascript,"exports.isIP = cares.isIP;
+exports.isIPv4 = function(input) {
+  return exports.isIP(input) === 4;
+};
+exports.isIPv6 = function(input) {
+  return exports.isIP(input) === 6;
+};"
+213,javascript,"'use strict';
+const {
+  ArrayPrototypePush,
+  Float64Array,
+  NumberParseInt,
+  ObjectDefineProperties,
+  StringPrototypeEndsWith,
+  StringPrototypeSlice,
+  SymbolToPrimitive,
+} = primordials;"
+214,javascript,"function arch() {
+  return process.arch;
+}
+arch[SymbolToPrimitive] = () => process.arch;
+function platform() {
+  return process.platform;
+}"
+215,javascript,"function getPriority(pid) {
+  if (pid === undefined)
+    pid = 0;
+  else
+    validateInt32(pid, 'pid');
+  const ctx = {};
+  const priority = _getPriority(pid, ctx);
+  if (priority === undefined)
+    throw new ERR_SYSTEM_ERROR(ctx);
+  return priority;
+}"
+216,javascript,"Package.onUse(api => {
+  api.versionsFrom('METEOR@1.0')
+  api.addFiles([
+    'dist/css/bootstrap.css',
+    'dist/js/bootstrap.js'
+  ], 'client')
+})"
+217,javascript,"function updatePackage(pkgRoot, version) {
+  const pkgPath = path.resolve(pkgRoot, 'package.json')
+  const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'))
+  pkg.version = version
+  fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n')
+}"
+218,javascript,"const getFixedUrl = (req) => {
+  var now = Date.now()
+  var url = new URL(req.url)
+  url.protocol = self.location.protocol
+  if (url.hostname === self.location.hostname) {
+    url.search += (url.search ? '&' : '?') + 'cache-bust=' + now
+  }
+  return url.href
+}"
+219,javascript,"function convertNPNProtocols(NPNProtocols, out) {
+  if (Array.isArray(NPNProtocols)) {
+    var buff = new Buffer(NPNProtocols.reduce(function(p, c) {
+      return p + 1 + Buffer.byteLength(c);
+    }, 0));
+    NPNProtocols.reduce(function(offset, c) {
+      var clen = Buffer.byteLength(c);
+      buff[offset] = clen;
+      buff.write(c, offset + 1);
+      return offset + 1 + clen;
+    }, 0);
+    NPNProtocols = buff;
+  }
+  if (Buffer.isBuffer(NPNProtocols)) {
+    out.NPNProtocols = NPNProtocols;
+  }
+}"
+220,javascript,"'use strict';
+const util = require('util');
+const net = require('net');
+const { TTY, isTTY } = process.binding('tty_wrap');
+const { inherits } = util;
+const errnoException = util._errnoException;
+const errors = require('internal/errors');
+const readline = require('readline');"
+221,javascript,"inherits(ReadStream, net.Socket);
+ReadStream.prototype.setRawMode = function(flag) {
+  flag = !!flag;
+  this._handle.setRawMode(flag);
+  this.isRaw = flag;
+};"
+222,javascript,"WriteStream.prototype.cursorTo = function(x, y) {
+  readline.cursorTo(this, x, y);
+};
+WriteStream.prototype.moveCursor = function(dx, dy) {
+  readline.moveCursor(this, dx, dy);
+};
+WriteStream.prototype.clearLine = function(dir) {
+  readline.clearLine(this, dir);
+};
+WriteStream.prototype.clearScreenDown = function() {
+  readline.clearScreenDown(this);
+};"
+223,javascript,"const hostnameMaxLen = 255;
+const unsafeProtocol = {
+  'javascript': true,
+  'javascript:': true
+};
+const hostlessProtocol = {
+  'javascript': true,
+  'javascript:': true
+};"
+224,javascript,"function runInThisContext(code, options) {
+  if (typeof options === 'string') {
+    options = { filename: options };
+  }
+  return createScript(code, options).runInThisContext(options);
+}"
+225,javascript,"const measureMemoryModes = {
+  summary: constants.measureMemory.mode.SUMMARY,
+  detailed: constants.measureMemory.mode.DETAILED,
+};
+const measureMemoryExecutions = {
+  default: constants.measureMemory.execution.DEFAULT,
+  eager: constants.measureMemory.execution.EAGER,
+};"
+233,kotlin,"private fun Project.android(configure: Action<BaseAppModuleExtension>) =
+    extensions.configure(""android"", configure)
+private fun BaseExtension.kotlinOptions(configure: Action<KotlinJvmOptions>) =
+    (this as ExtensionAware).extensions.findByName(""kotlinOptions"")?.let {
+        configure.execute(it as KotlinJvmOptions)
+    }"
+234,kotlin,"object Success {
+  @JvmStatic fun main(args:Array<String>) {
+    println(""Interviews are tough, so are you :)"")
+  }
+}"
+240,kotlin,"#parse(""File Header.java"")
+class ${NAME}ViewModel : ViewModel() {
+  private val store = RxStore(${NAME}State())
+  private val disposables = CompositeDisposable()
+  val state: Flowable<${NAME}State> = store.stateFlowable
+  override fun onCleared() {
+    disposables.clear()
+  }
+}"
+241,python,"def main():
+    num = 4
+    path, length = n31(num)
+    print(
+        ""The Collatz sequence of {0} took {1} steps. \nPath: {2}"".format(
+            num, length, path
+        )
+    )
+if __name__ == ""__main__"":
+    main()"
+242,python,"if __name__ == ""__main__"":
+    print(f""The generated key is : {bb84(8, seed=0)}"")
+    from doctest import testmod
+    testmod()"
+243,python,"sys.path.insert(0, os.path.abspath('sphinx'))
+from load_config import loadConfig
+extensions = ['kerneldoc', 'rstFlatTable', 'kernel_include', 'cdomain']
+if major == 1 and minor > 3:
+    extensions.append(""sphinx.ext.imgmath"")
+else:
+    extensions.append(""sphinx.ext.pngmath"")
+templates_path = ['_templates']"
+244,python,"class UserInputError(Exception):
+  pass
+def is_windows():
+  return platform.system() == 'Windows'
+def is_linux():
+  return platform.system() == 'Linux'
+def is_macos():
+  return platform.system() == 'Darwin'
+def is_ppc64le():
+  return platform.machine() == 'ppc64le'
+def is_cygwin():
+  return platform.system().startswith('CYGWIN_NT')"
+246,python,"class Expression:
+  def ToPerfJson(self) -> str:
+    raise NotImplementedError()
+  def ToPython(self) -> str:
+    raise NotImplementedError()
+  def Simplify(self):
+    raise NotImplementedError()"
+248,python,"tensor_buf_mem = [x/(1024*1024) for x in tensor_buf_mem]
+plt.plot(tensor_buf_mem)
+plt.ylabel('Buffer Memory (MB)')
+plt.xlabel('step')
+plt.show()"
+249,python,"if __name__ == ""__main__"":
+    doctest.testmod()
+    quantum_engine = projectq.MainEngine()
+    random_numbers_list = [get_random_number(quantum_engine) for _ in range(10)]
+    quantum_engine.flush()
+    print(""Random numbers"", random_numbers_list)"
+250,python,"cc = getenv(""CC"")
+if cc == ""clang"":
+    from distutils.sysconfig import get_config_vars
+    vars = get_config_vars()
+    for var in ('CFLAGS', 'OPT'):
+        vars[var] = sub(""-specs=[^ ]+"", """", vars[var])
+        if not clang_has_option(""-mcet""):
+            vars[var] = sub(""-mcet"", """", vars[var])
+        if not clang_has_option(""-fcf-protection""):
+            vars[var] = sub(""-fcf-protection"", """", vars[var])"
+251,python,"class build_ext(_build_ext):
+    def finalize_options(self):
+        _build_ext.finalize_options(self)
+        self.build_lib  = build_lib
+        self.build_temp = build_tmp
+class install_lib(_install_lib):
+    def finalize_options(self):
+        _install_lib.finalize_options(self)
+        self.build_dir = build_lib"
+252,python,"src_perf  = getenv('srctree') + '/tools/perf'
+build_lib = getenv('PYTHON_EXTBUILD_LIB')
+build_tmp = getenv('PYTHON_EXTBUILD_TMP')
+libtraceevent = getenv('LIBTRACEEVENT')
+libapikfs = getenv('LIBAPI')"
+253,python,"def _maybe_tensor_shape_from_tensor(shape):
+  if isinstance(shape, ops.Tensor):
+    return tensor_shape.as_shape(tensor_util.constant_value(shape))
+  else:
+    return shape"
+256,python,"class ParserException(Exception):
+    def __init__(self, tok, txt):
+        self.tok = tok
+        self.txt = txt
+class SPDXException(Exception):
+    def __init__(self, el, txt):
+        self.el = el
+        self.txt = txt
+class SPDXdata(object):
+    def __init__(self):
+        self.license_files = 0
+        self.exception_files = 0
+        self.licenses = [ ]
+        self.exceptions = { }"
+257,python,"def dentry_name(d):
+    parent = d['d_parent']
+    if parent == d or parent == 0:
+        return """"
+    p = dentry_name(d['d_parent']) + ""/""
+    return p + d['d_iname'].string()"
+258,python,"class NlError(Exception):
+  def __init__(self, nl_msg):
+    self.nl_msg = nl_msg
+  def __str__(self):
+    return f""Netlink error: {os.strerror(-self.nl_msg.error)}\n{self.nl_msg}"""
+264,python,"class NlAttrs:
+    def __init__(self, msg):
+        self.attrs = []
+        offset = 0
+        while offset < len(msg):
+            attr = NlAttr(msg, offset)
+            offset += attr.full_len
+            self.attrs.append(attr)"
+266,python,"class NlMsgs:
+    def __init__(self, data, attr_space=None):
+        self.msgs = []
+        offset = 0
+        while offset < len(data):
+            msg = NlMsg(data, offset, attr_space=attr_space)
+            offset += msg.nl_len
+            self.msgs.append(msg)
+    def __iter__(self):
+        yield from self.msgs"
+267,python,"class GenlFamily:
+    def __init__(self, family_name):
+        self.family_name = family_name
+        global genl_family_name_to_id
+        if genl_family_name_to_id is None:
+            _genl_load_families()
+        self.genl_family = genl_family_name_to_id[family_name]
+        self.family_id = genl_family_name_to_id[family_name]['id']"
+268,typescript,"function isDeclaration(a: TSTopLevelDeclare): a is TSTopLevelDeclaration {
+	return (
+		a.kind === ts.SyntaxKind.InterfaceDeclaration
+		|| a.kind === ts.SyntaxKind.EnumDeclaration
+		|| a.kind === ts.SyntaxKind.ClassDeclaration
+		|| a.kind === ts.SyntaxKind.TypeAliasDeclaration
+		|| a.kind === ts.SyntaxKind.FunctionDeclaration
+		|| a.kind === ts.SyntaxKind.ModuleDeclaration
+	);
+}"
+269,typescript,"interface ITempResult {
+	result: string;
+	usageContent: string;
+	enums: string;
+}
+interface IEnumEntry {
+	enumName: string;
+	text: string;
+}"
+270,typescript,"export interface IMonacoDeclarationResult {
+	content: string;
+	usageContent: string;
+	enums: string;
+	filePath: string;
+	isTheSame: boolean;
+}"
+271,typescript,"function _run(sourceFileGetter: SourceFileGetter): IMonacoDeclarationResult | null {
+	const recipe = fs.readFileSync(RECIPE_PATH).toString();
+	const t = generateDeclarationFile(recipe, sourceFileGetter);
+	if (!t) {
+		return null;
+	}"
+272,typescript,"export function run3(resolver: DeclarationResolver): IMonacoDeclarationResult | null {
+	const sourceFileGetter = (moduleId: string) => resolver.getDeclarationSourceFile(moduleId);
+	return _run(sourceFileGetter);
+}"
+274,typescript,"function getTypeScriptCompilerOptions(src: string): ts.CompilerOptions {
+	const rootDir = path.join(__dirname, `../../${src}`);
+	let options: ts.CompilerOptions = {};
+	options.verbose = false;
+	options.sourceMap = true;
+	if (process.env['VSCODE_NO_SOURCEMAP']) { 
+		options.sourceMap = false;
+	}
+	options.rootDir = rootDir;
+	options.baseUrl = rootDir;
+	options.sourceRoot = util.toFileUri(rootDir);
+	options.newLine = /\r\n/.test(fs.readFileSync(__filename, 'utf8')) ? 0 : 1;
+	return options;
+}"
+275,typescript,"export function watchTask(out: string, build: boolean): () => NodeJS.ReadWriteStream {
+	return function () {
+		const compile = createCompile('src', build);
+		const src = gulp.src('src/**', { base: 'src' });
+		const watchSrc = watch('src/**', { base: 'src', readDelay: 200 });
+		let generator = new MonacoGenerator(true);
+		generator.execute();
+		return watchSrc
+			.pipe(generator.stream)
+			.pipe(util.incremental(compile, src, true))
+			.pipe(gulp.dest(out));
+	};
+}"
+263,python,"def as_c_array(self, type):
+format = self.get_format(type)
+return [ x[0] for x in format.iter_unpack(self.raw) ]"
+277,typescript,"function linkTagExists(name: string, cssUrl: string): boolean {
+	const links = document.getElementsByTagName('link');
+	for (let i = 0, len = links.length; i < len; i++) {
+		const nameAttr = links[i].getAttribute('data-name');
+		const hrefAttr = links[i].getAttribute('href');
+		if (nameAttr === name || hrefAttr === cssUrl) {
+			return true;
+		}
+	}
+	return false;
+}"
+278,typescript,"function darwinBundleDocumentType(extensions: string[], icon: string) {
+	return {
+		name: product.nameLong + ' document',
+		role: 'Editor',
+		ostypes: ['TEXT', 'utxt', 'TUTX', '****'],
+		extensions: extensions,
+		iconFile: icon
+	};
+}"
+279,typescript,"if (require.main === module) {
+	main(process.argv[2]).catch(err => {
+		console.error(err);
+		process.exit(1);
+	});
+}"
+280,typescript,"interface ImportMetaEnv {
+  GITHUB_SHA: string;
+  PUBLIC_API_URL: string;
+  PUBLIC_AVATAR_BASE_URL: string;
+}
+interface ImportMeta {
+  readonly env: ImportMetaEnv;
+}"
+281,typescript,"export interface MarkdownFileType<T = Record<string, string>> {
+  frontmatter: T;
+  file: string;
+  url?: string;
+  Content: any;
+  getHeadings: () => {
+    depth: number;
+    slug: string;
+    text: string;
+  }[];
+}"
+282,typescript,"import * as jose from 'jose';
+export const TOKEN_COOKIE_NAME = '__roadmapsh_jt__';
+export type TokenPayload = {
+  id: string;
+  email: string;
+  name: string;
+};
+export function decodeToken(token: string): TokenPayload {
+  const claims = jose.decodeJwt(token);
+  return claims as TokenPayload;
+}"
+283,typescript,"interface IBundledStrings {
+	[moduleId: string]: string[];
+}
+export interface ILocalizeInfo {
+	key: string;
+	comment: string[];
+}"
+284,typescript,"function endWithSlash(path: string): string {
+	if (path.charAt(path.length - 1) === '/') {
+		return path;
+	}
+	return path + '/';
+}"
+285,typescript,"function createScopedLocalize(scope: string[]): IBoundLocalizeFunc {
+	return function (idx: number, defaultValue: null) {
+		const restArgs = Array.prototype.slice.call(arguments, 2);
+		return _format(scope[idx], restArgs);
+	};
+}"
+286,typescript,"async function rimrafMove(path: string): Promise<void> {
+	try {
+		const pathInTemp = join(tmpdir(), generateUuid());
+		try {
+			await Promises.rename(path, pathInTemp);
+		} catch (error) {
+			return rimrafUnlink(path); 
+		}
+		rimrafUnlink(pathInTemp).catch(error => { });
+	} catch (error) {
+		if (error.code !== 'ENOENT') {
+			throw error;
+		}
+	}
+}"
+287,typescript,"async function rimrafUnlink(path: string): Promise<void> {
+	return Promises.rmdir(path, { recursive: true, maxRetries: 3 });
+}
+export function rimrafSync(path: string): void {
+	if (isRootOrDriveLetter(path)) {
+		throw new Error('rimraf - will refuse to recursively delete root');
+	}
+	fs.rmdirSync(path, { recursive: true });
+}"
+288,typescript,"interface ICopyPayload {
+	readonly root: { source: string, target: string };
+	readonly options: { preserveSymlinks: boolean };
+	readonly handledSourcePaths: Set<string>;
+}"
+290,typescript,"export function toFileUri(filePath: string): string {
+	const match = filePath.match(/^([a-z])\:(.*)$/i);
+	if (match) {
+		filePath = '/' + match[1].toUpperCase() + ':' + match[2];
+	}
+	return 'file://' + filePath.replace(/\\/g, '/');
+}"
+291,typescript,"export function skipDirectories(): NodeJS.ReadWriteStream {
+	return es.mapSync<VinylFile, VinylFile | undefined>(f => {
+		if (!f.isDirectory()) {
+			return f;
+		}
+	});
+}"
+3,c,"struct
+{
+  spinlock_t ctx_lock;
+  struct list_head active_reqs; 
+} ____cacheline_aligned_in_smp;
+struct
+{
+  struct mutex ring_lock;
+  wait_queue_head_t wait;
+} ____cacheline_aligned_in_smp;
+struct
+{
+  unsigned tail;
+  unsigned completed_events;
+  spinlock_t completion_lock;
+} ____cacheline_aligned_in_smp;
+struct page *internal_pages[AIO_RING_PAGES];
+struct file *aio_ring_file;
+unsigned id;"
+9,c,"if (req->work_scheduled)
+{
+  req->work_need_resched = true;
+}
+else
+{
+  schedule_work(&req->work);
+  req->work_scheduled = true;
+}"
+11,c,"struct timespec64 t;
+bool interrupted;
+int ret;
+if (timeout && get_timespec64(&t, timeout))
+  return -EFAULT;
+if (usig && copy_from_user(&ksig, usig, sizeof(ksig)))
+  return -EFAULT;"
+12,c,"unsigned long next_zero_bit, next_set_bit, nr_zero;
+unsigned long start = 0;
+unsigned long nr_part, nr_total = 0;
+unsigned long nbits = cma_bitmap_maxno(cma);
+mutex_lock(&cma->lock);
+pr_info(""number of available pages: "");"
+13,c,"next_set_bit = find_next_bit(cma->bitmap, nbits, next_zero_bit);
+nr_zero = next_set_bit - next_zero_bit;
+nr_part = nr_zero << cma->order_per_bit;
+pr_cont(""%s%lu@%lu"", nr_total ? ""+"" : """", nr_part,
+  next_zero_bit);
+nr_total += nr_part;
+start = next_zero_bit + nr_zero;"
+14,c,"static struct ctl_table aio_sysctls[] = {
+  {
+      .procname = ""aio-nr"",
+      .data = &aio_nr,
+      .maxlen = sizeof(aio_nr),
+      .mode = 0444,
+      .proc_handler = proc_doulongvec_minmax,
+  },
+  {
+      .procname = ""aio-max-nr"",
+      .data = &aio_max_nr,
+      .maxlen = sizeof(aio_max_nr),
+      .mode = 0644,
+      .proc_handler = proc_doulongvec_minmax,
+  },
+  {}};"
+15,c,"if (page)
+{
+  for (i = 0; i < count; i++)
+    page_kasan_tag_reset(page + i);
+}
+if (ret && !no_warn)
+{
+  pr_err(""%s: alloc failed, req-size: %zu pages, ret: %d\n"",
+         __func__, count, ret);
+  cma_debug_show_areas(cma);
+}"
+36,c,"int err;
+struct mm_struct *mm = NULL;
+bprm->mm = mm = mm_alloc();
+err = -ENOMEM;
+if (!mm)
+  goto err;
+task_lock(current->group_leader);
+bprm->rlim_stack = current->signal->rlim[RLIMIT_STACK];
+task_unlock(current->group_leader);
+err = __bprm_mm_init(bprm);"
+39,c,"tsk->start_time = leader->start_time;
+tsk->real_start_time = leader->real_start_time;
+BUG_ON(!same_thread_group(leader, tsk));
+BUG_ON(has_group_leader_pid(tsk));
+tsk->pid = leader->pid;
+change_pid(tsk, PIDTYPE_PID, task_pid(leader));
+transfer_pid(leader, tsk, PIDTYPE_TGID);
+transfer_pid(leader, tsk, PIDTYPE_PGID);
+transfer_pid(leader, tsk, PIDTYPE_SID);
+list_replace_rcu(&leader->tasks, &tsk->tasks);
+list_replace_init(&leader->sibling, &tsk->sibling);"
+43,c,"if (!data)
+goto out_arr;
+fdt->open_fds = data;
+data += nr / BITS_PER_BYTE;
+fdt->close_on_exec = data;
+data += nr / BITS_PER_BYTE;
+fdt->full_fds_bits = data;"
+47,c,"if (gup_fast_permitted(start, nr_pages, write)) {
+  local_irq_disable();
+  gup_pgd_range(addr, end, write, pages, &nr);
+  local_irq_enable();
+  ret = nr;
+}"
+50,c,"zhdr = list_tail_entry(&pool->lru, struct zbud_header, lru);
+list_del(&zhdr->lru);
+list_del(&zhdr->buddy);
+zhdr->under_reclaim = true;
+first_handle = 0;
+last_handle = 0;
+if (zhdr->first_chunks)
+  first_handle = encode_handle(zhdr, FIRST);
+if (zhdr->last_chunks)
+  last_handle = encode_handle(zhdr, LAST);
+spin_unlock(&pool->lock);"
+52,c,"static const struct vm_operations_struct aio_ring_vm_ops = {
+  .mremap = aio_ring_mremap,
+#if IS_ENABLED(CONFIG_MMU)
+  .fault = filemap_fault,
+  .map_pages = filemap_map_pages,
+  .page_mkwrite = filemap_page_mkwrite,
+#endif
+};"
+54,c,"ctx->mmap_size = nr_pages * PAGE_SIZE;
+pr_debug(""attempting mmap of %lu bytes\n"", ctx->mmap_size);
+if (mmap_write_lock_killable(mm))
+{
+  ctx->mmap_size = 0;
+  aio_free_ring(ctx);
+  return -EINTR;
+}"
+67,cpp,"bool ECC_InitSanityCheck() {
+  CKey key;
+  key.MakeNewKey(true);
+  CPubKey pubkey = key.GetPubKey();
+  return key.VerifyPubKey(pubkey);
+}"
+68,cpp,"void ECC_Stop() {
+  secp256k1_context *ctx = secp256k1_context_sign;
+  secp256k1_context_sign = nullptr;
+  if (ctx) {
+      secp256k1_context_destroy(ctx);
+  }
+}"
+77,cpp,"Decl *getParentDecl() const {
+  if (!EntitiesStack.empty())
+    return EntitiesStack.back().D;
+  return nullptr;
+}"
+78,cpp,"void repressRefAtLoc(SourceLoc Loc) {
+  if (Loc.isInvalid()) return;
+  assert(!EntitiesStack.empty());
+  EntitiesStack.back().RefsToSuppress.push_back(Loc);
+}"
+79,cpp,"  bool isRepressed(SourceLoc Loc) const {
+  if (EntitiesStack.empty() || Loc.isInvalid())
+    return false;
+  auto &Suppressed = EntitiesStack.back().RefsToSuppress;
+  return std::find(Suppressed.begin(), Suppressed.end(), Loc) != Suppressed.end();
+}ool isRepressed(SourceLoc Loc) const {
+    if (EntitiesStack.empty() || Loc.isInvalid())
+      return false;
+    auto &Suppressed = EntitiesStack.back().RefsToSuppress;
+    return std::find(Suppressed.begin(), Suppressed.end(), Loc) != Suppressed.end();
+  }"
+80,cpp,"Expr *getContainingExpr(size_t index) const {
+  if (ExprStack.size() > index)
+    return ExprStack.end()[-(index + 1)];
+  return nullptr;
+}"
+81,cpp,"Expr *getCurrentExpr() const {
+  return ExprStack.empty() ? nullptr : ExprStack.back();
+}
+Expr *getParentExpr() const {
+  return getContainingExpr(1);
+}"
+82,cpp,"bool indexComment(const Decl *D);
+std::pair<unsigned, unsigned> getLineCol(SourceLoc Loc) {
+  if (Loc.isInvalid())
+    return std::make_pair(0, 0);
+  return SrcMgr.getLineAndColumn(Loc, BufferID);
+}"
+83,cpp,"bool shouldIndex(ValueDecl *D, bool IsRef) const {
+  if (D->isImplicit() && !isa<ConstructorDecl>(D))
+    return false;
+  if (!IdxConsumer.indexLocals() && isLocalSymbol(D))
+    return isa<ParamDecl>(D) && !IsRef &&
+      D->getDeclContext()->getContextKind() != DeclContextKind::AbstractClosureExpr;
+  if (D->isPrivateStdlibDecl())
+    return false;
+  return true;
+}"
+84,cpp,"template <typename F>
+void warn(F log) {
+  if (!enableWarnings)
+    return;
+  SmallString<128> warning;
+  llvm::raw_svector_ostream OS(warning);
+  log(OS);
+}"
+87,cpp,"void index::indexModule(ModuleDecl *module, StringRef hash,
+  IndexDataConsumer &consumer) {
+assert(module);
+IndexSwiftASTWalker walker(consumer, module->getASTContext());
+walker.visitModule(*module, hash);
+consumer.finish();
+}"
+115,go,"type Field struct {
+	Doc     *CommentGroup
+	Names   []*Ident
+	Type    Expr
+	Tag     *BasicLit
+	Comment *CommentGroup
+}
+func (f *Field) Pos() token.Pos {
+	if len(f.Names) > 0 {
+		return f.Names[0].Pos()
+	}
+	return f.Type.Pos()
+}"
+88,csharp,"static void Main(string[] args)
+{
+    var twilio = new TwilioRestClient(TWILIO_ACCOUNT_SID, AUTH_TOKEN);
+    string[] randomMessages = {
+        ""Locked out"",
+        ""Pipes broke"",
+        ""Food poisoning"",
+        ""Not feeling well""
+    };
+    int randomIndex = new Random().Next(randomMessages.Count());
+    String messageToSend = (randomMessages[randomIndex]);
+    var message = twilio.SendMessage(YOUR_NUMBER, BOSS_NUMBER, messageToSend);
+    Console.WriteLine(message.Sid);
+}"
+89,csharp,"public static void SetupAll(TestContext context)
+{
+    Log.Comment(""Searching for WinAppDriver in the same directory where this test was launched from..."");
+    string winAppDriver = Path.Combine(context.TestDeploymentDir, ""WinAppDriver.exe"");
+    Log.Comment($""Attempting to launch WinAppDriver at: {winAppDriver}"");
+    Log.Comment($""Working directory: {Environment.CurrentDirectory}"");
+    appDriver = Process.Start(winAppDriver);
+}"
+90,csharp,"public static void CleanupAll()
+{
+    try
+    {
+        appDriver.Kill();
+    }
+    catch
+    {
+    }
+}"
+91,csharp,"protected Model(int width, int height, int N, bool periodic, Heuristic heuristic)
+{
+    MX = width;
+    MY = height;
+    this.N = N;
+    this.periodic = periodic;
+    this.heuristic = heuristic;
+}"
+92,csharp,"void Ban(int i, int t)
+{
+    wave[i][t] = false;
+    int[] comp = compatible[i][t];
+    for (int d = 0; d < 4; d++) comp[d] = 0;
+    stack[stacksize] = (i, t);
+    stacksize++;
+    sumsOfOnes[i] -= 1;
+    sumsOfWeights[i] -= weights[t];
+    sumsOfWeightLogWeights[i] -= weightLogWeights[t];
+    double sum = sumsOfWeights[i];
+    entropies[i] = Math.Log(sum) - sumsOfWeightLogWeights[i] / sum;
+}"
+94,csharp,"public abstract void Save(string filename);
+protected static int[] dx = { -1, 0, 1, 0 };
+protected static int[] dy = { 0, 1, 0, -1 };
+static int[] opposite = { 2, 3, 0, 1 };"
+95,csharp,"private MediaTypeCollection _contentTypes;
+public ObjectResult(object? value)
+{
+    Value = value;
+    Formatters = new FormatterCollection<IOutputFormatter>();
+    _contentTypes = new MediaTypeCollection();
+}"
+97,csharp,"[StructLayout(LayoutKind.Sequential, Pack = 8)]
+public struct PROPVARIANT
+{
+    public VARTYPE Type;
+    public PROPVARIANT_Value Value;
+}"
+98,csharp,"[StructLayout(LayoutKind.Sequential, Pack = 4)]
+public struct PROPVARIANT_SplitI8
+{
+    public int A;
+    public int B;
+}
+[StructLayout(LayoutKind.Sequential, Pack = 4)]
+public struct PROPVARIANT_SplitUI8
+{
+    public uint A;
+    public uint B;
+}
+[StructLayout(LayoutKind.Sequential)]
+public struct PROPVARIANT_Vector
+{
+    public int Length;
+    public IntPtr Ptr;
+}"
+99,csharp,"public override void SetupGlobalEnvironment(
+  TargetInfo Target,
+  ref LinkEnvironmentConfiguration OutLinkEnvironmentConfiguration,
+  ref CPPEnvironmentConfiguration OutCPPEnvironmentConfiguration
+  )
+{
+      if (Target.Platform == UnrealTargetPlatform.IOS)
+  {
+  }
+}"
+100,csharp,"public UE4GameTarget( TargetInfo Target ) : base(Target)
+{
+  Type = TargetType.Game;
+  BuildEnvironment = TargetBuildEnvironment.Shared;
+  bOutputToEngineBinaries = true;
+  ExtraModuleNames.Add(""UE4Game"");
+}"
+140,html,"<tr>
+<td>
+ <a href=""https://linuxtv.org/downloads/legacy/video4linux/API/V4L1_API.html"">V4L original API</a>
+</td>
+<td>
+ Obsoleted by V4L2 API
+</td>
+</tr>"
+143,html,"<ul>
+  <li>Menu 3-1</li>
+  <li>Menu 3-2</li>
+  <li>Menu 3-3</li>
+  <li>Menu 3-4</li>
+  <li>Menu 3-5</li>
+</ul>"
+144,html,"<thead>
+<tr>
+  <th v-for=""key in columns""
+    @click=""sortBy(key)""
+    :class=""{ active: state.sortKey == key }"">
+    {{ capitalize(key) }}
+    <span class=""arrow"" :class=""state.sortOrders[key] > 0 ? 'asc' : 'dsc'"">
+    </span>
+  </th>
+</tr>
+</thead>"
+145,html,"<li class=""nav-item d-none d-sm-inline-block"">
+  <a href=""home.html"" class=""nav-link"">Home</a>
+</li>
+<li class=""nav-item d-none d-sm-inline-block"">
+  <a href=""#"" class=""nav-link"">Contact</a>
+</li>"
+146,html,"<li class=""nav-item"">
+<a class=""nav-link"" data-widget=""fullscreen"" href=""#"" role=""button"">
+  <i class=""fas fa-expand-arrows-alt""></i>
+</a>
+</li>"
+147,html,"<!-- Brand Logo -->
+<a href=""home.html"" class=""brand-link"">
+  <img src=""dist/img/logo.png"" alt=""AdminLTE Logo"" class=""brand-image img-circle elevation-3"" style=""opacity: .8"">
+  <span class=""brand-text font-weight-light"">MSS ERP</span>
+</a>"
+148,html,"<div class=""input-group-append"">
+  <button class=""btn btn-sidebar"">
+    <i class=""fas fa-search fa-fw""></i>
+  </button>
+</div>"
+149,html,"<div v-for=""stat in stats"">
+  <label>{{stat.label}}</label>
+  <input type=""range"" v-model=""stat.value"" min=""0"" max=""100"" />
+  <span>{{stat.value}}</span>
+  <button @click=""remove(stat)"" class=""remove"">X</button>
+</div>"
+150,html,"<form id=""add"">
+  <input name=""newlabel"" v-model=""newLabel"" />
+  <button @click=""add"">Add a Stat</button>
+</form>"
+154,java,"public record Build(
+  String flavor,
+  Type type,
+  String hash,
+  String date,
+  boolean isSnapshot,
+  String version,
+  String minWireCompatVersion,
+  String minIndexCompatVersion,
+  String displayString
+)"
+155,java,"private void writeLittleEndianIntToStdout(int val) throws Exception {
+  byte[] buf = new byte[4];
+  buf[0] = (byte) val;
+  buf[1] = (byte) (val >> 8);
+  buf[2] = (byte) (val >> 16);
+  buf[3] = (byte) (val >> 24);
+  writeToStdout(buf);
+}"
+156,java,"private Files() {}
+public static BufferedReader newReader(File file, Charset charset) throws FileNotFoundException {
+  checkNotNull(file);
+  checkNotNull(charset);
+  return new BufferedReader(new InputStreamReader(new FileInputStream(file), charset));
+}"
+157,java,"private enum ToStringFunction implements Function<Object, String> {
+  INSTANCE;
+  @Override
+  public String apply(Object o) {
+    checkNotNull(o); 
+    return o.toString();
+  }
+  @Override
+  public String toString() {
+    return ""Functions.toStringFunction()"";
+  }
+}"
+159,java,"@Override
+public int hashCode() {
+  return map.hashCode();
+}
+@Override
+public String toString() {
+  return ""Functions.forMap("" + map + "")"";
+}"
+161,java,"Options(InterpreterImpl.Options options) {
+  super(options);
+}
+@Override
+public Options setUseXNNPACK(boolean useXNNPACK) {
+  super.setUseXNNPACK(useXNNPACK);
+  return this;
+}
+@Override
+public Options setNumThreads(int numThreads) {
+  super.setNumThreads(numThreads);
+  return this;
+}"
+173,java,"public static String readInputStream(InputStream stream) throws IOException
+{
+  BufferedReader reader = new BufferedReader(
+      new InputStreamReader(stream));
+  StringBuffer result = new StringBuffer();
+  String tmp = reader.readLine();
+  while (tmp != null)
+  {
+    result.append(tmp.trim());
+    tmp = reader.readLine();
+  }
+  reader.close();
+  return result.toString();
+}"
+185,javascript,"function read() {
+  if (size === 0) {
+    buffer = new Buffer(8192);
+    fs.read(fd, buffer, 0, 8192, -1, afterRead);
+  } else {
+    fs.read(fd, buffer, pos, size - pos, -1, afterRead);
+  }
+}"
+226,kotlin,"class App : Application(), androidx.work.Configuration.Provider by Core {
+  override fun onCreate() {
+      super.onCreate()
+      Core.init(this, MainActivity::class)
+  }
+  override fun onConfigurationChanged(newConfig: Configuration) {
+      super.onConfigurationChanged(newConfig)
+      Core.updateNotificationChannels()
+  }
+}"
+227,kotlin,"private fun PrintStream.byteField(name: String, bytes: ByteArray) {
+  println(""public static byte[] $name() {"")
+  print(""byte[] buf = {"")
+  print(bytes.joinToString("","") { it.toString() })
+  println(""};"")
+  println(""return buf;"")
+  println(""}"")
+}"
+228,kotlin,"fun main() {
+  val client = TwilioRestClient(ACCOUNT_SID, AUTH_TOKEN)
+  val finalMessage = randomMessages.random()
+  val params = ArrayList<NameValuePair>().apply {
+      add(BasicNameValuePair(""Body"", ""Gonna work from home. $finalMessage""))
+      add(BasicNameValuePair(""From"", YOUR_NUMBER))
+      add(BasicNameValuePair(""To"", BOSS_NUMBER))
+  }
+  val messageFactory = client.getAccount().getMessageFactory()
+  val message = messageFactory.create(params)
+  System.out.println(message.getSid())
+}"
+229,kotlin,"fun blinky(value: Int) {
+  val port = LED0_GPIO_CONTROLLER
+  val led = LED0_GPIO_PIN
+  var toggler = false
+  val dev = device_get_binding(port)
+  gpio_pin_configure(dev, led.convert(), GPIO_DIR_OUT)
+  while (true) {
+       /* Set pin to HIGH/LOW every 1 second */
+       gpio_pin_write(dev, led.convert(), if (toggler) 1U else 0U);
+       toggler = !toggler
+       k_sleep(1000 * value);
+ }
+}"
+230,kotlin,"@JvmName(""-deprecated_boundary"")
+@Deprecated(
+    message = ""moved to val"",
+    replaceWith = ReplaceWith(expression = ""boundary""),
+    level = DeprecationLevel.ERROR)
+fun boundary(): String = boundary"
+231,kotlin,"fun test(nullable: String?): Boolean {
+  return nullable != null &&
+          nullable.length == 2
+}
+fun testExpressionBody(nullable: String?) =
+  nullable != null &&
+          nullable.length == 2"
+232,kotlin,"@JvmName(""-deprecated_headers"")
+@Deprecated(
+    message = ""moved to val"",
+    replaceWith = ReplaceWith(expression = ""headers""),
+    level = DeprecationLevel.ERROR)
+fun headers(): Headers = headers"
+235,kotlin,"fun foo() {
+  super.foo();
+  super<Int>.foo();
+  super<>.foo();
+  super<Int>@label.foo();
+}"
+236,kotlin,"data class Todo (
+  val id: Double = guid(),
+  val title: String,
+  var completed: Boolean = false
+)"
+237,kotlin,"fun foo(shouldThrow: Boolean) {
+  try {
+      if (shouldThrow) throw Exception()
+  } catch (e: Exception) {
+      ""OK""
+  }
+  ""OK""
+}"
+238,kotlin,"fun foo() {
+  try {
+      mightThrow()
+  } finally {
+      ""FINALLY""
+  }
+  val t = try {
+      mightThrow2()
+  } finally {
+      ""FINALLY2""
+  }
+}"
+239,kotlin,"fun mightThrow() {
+  if (throw1) throw Exception()
+}
+fun mightThrow2() {
+  if (throw2) throw Exception()
+}"
+245,python,"def exec_tests(linux: kunit_kernel.LinuxSourceTree,
+  request: KunitExecRequest) -> KunitResult:
+kunit_parser.print_with_timestamp('Starting KUnit Kernel ...')
+test_start = time.time()
+result = linux.run_kernel(
+timeout=None if request.alltests else request.timeout,
+         filter_glob=request.filter_glob,
+build_dir=request.build_dir)
+test_end = time.time()
+return KunitResult(KunitStatus.SUCCESS,
+  result,
+  test_end - test_start)"
+247,python,"def __str__(self) -> str:
+return self.ToPerfJson()
+def __or__(self, other: Union[int, float, 'Expression']) -> 'Operator':
+return Operator('|', self, other)
+def __ror__(self, other: Union[int, float, 'Expression']) -> 'Operator':
+return Operator('|', other, self)"
+254,python,"if explicit_dtype is not None:
+return explicit_dtype
+elif nest.is_sequence(state):
+inferred_dtypes = [element.dtype for element in nest.flatten(state)]
+if not inferred_dtypes:
+  raise ValueError(""Unable to infer dtype from empty state."")
+all_same = all([x == inferred_dtypes[0] for x in inferred_dtypes])
+if not all_same:
+  raise ValueError(
+      ""State has tensors of different inferred_dtypes. Unable to infer a ""
+      ""single representative dtype."")
+return inferred_dtypes[0]
+else:
+return state.dtype"
+255,python,"def _rnn_step(
+  time, sequence_length, min_sequence_length, max_sequence_length,
+  zero_output, state, call_cell, state_size, skip_conditionals=False):"
+259,python,"def __init__(self, raw, offset):
+self._len, self._type = struct.unpack(""HH"", raw[offset:offset + 4])
+self.type = self._type & ~Netlink.NLA_TYPE_MASK
+self.payload_len = self._len
+self.full_len = (self.payload_len + 3) & ~3
+self.raw = raw[offset + 4:offset + self.payload_len]"
+260,python,"@classmethod
+def get_format(cls, attr_type, byte_order=None):
+    format = cls.type_formats[attr_type]
+    if byte_order:
+        return format.big if byte_order == ""big-endian"" \
+            else format.little
+    return format.native"
+261,python,"@classmethod
+def formatted_string(cls, raw, display_hint):
+    if display_hint == 'mac':
+        formatted = ':'.join('%02x' % b for b in raw)
+    elif display_hint == 'hex':
+        formatted = bytes.hex(raw, ' ')
+    elif display_hint in [ 'ipv4', 'ipv6' ]:
+        formatted = format(ipaddress.ip_address(raw))
+    elif display_hint == 'uuid':
+        formatted = str(uuid.UUID(bytes=raw))
+    else:
+        formatted = raw
+    return formatted"
+262,python,"def as_scalar(self, attr_type, byte_order=None):
+format = self.get_format(attr_type, byte_order)
+return format.unpack(self.raw)[0]
+def as_strz(self):
+return self.raw.decode('ascii')[:-1]
+def as_bin(self):
+return self.raw"
+265,python,"def __iter__(self):
+yield from self.attrs
+def __repr__(self):
+msg = ''
+for a in self.attrs:
+    if msg:
+        msg += '\n'
+    msg += repr(a)
+return msg"
+273,typescript,"const insertDirectoryRecursive = (dir: string) => {
+  if (seenDir[dir]) {
+    return;
+  }
+  let lastSlash = dir.lastIndexOf('/');
+  if (lastSlash === -1) {
+    lastSlash = dir.lastIndexOf('\\');
+  }
+  if (lastSlash !== -1) {
+    insertDirectoryRecursive(dir.substring(0, lastSlash));
+  }
+  seenDir[dir] = true;
+  filesystem.insertDirectory(dir);
+};"
+276,typescript,"private _executeSoon(): void {
+  if (this._executeSoonTimer !== null) {
+    clearTimeout(this._executeSoonTimer);
+    this._executeSoonTimer = null;
+  }
+  this._executeSoonTimer = setTimeout(() => {
+    this._executeSoonTimer = null;
+    this.execute();
+  }, 20);
+}"
+289,typescript,"const eventuallyRun = debounce(() => {
+  const paths = Object.keys(buffer);
+  if (paths.length === 0) {
+    return;
+  }
+  const data = paths.map(path => buffer[path]);
+  buffer = Object.create(null);
+  run(es.readArray(data), true);
+}, 500);"
+292,typescript,"export class ResolvedAuthority {
+  readonly host: string;
+  readonly port: number;
+  readonly connectionToken: string | undefined;
+  constructor(host: string, port: number, connectionToken?: string);
+}"

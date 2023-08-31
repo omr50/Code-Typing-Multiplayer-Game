@@ -30,6 +30,15 @@ function MultiplayerGame() {
   const [gamestate, setGamestate] = useState<boolean>(true)
   const mistakesRef = useRef<number>(0);
 
+  interface progress {
+    playerID: string,
+    progress?: string,
+    name: string,
+    WPM?: string,
+    place?: string,
+    color: string
+  }
+
   const gameRoomIdRef = useRef<string>('')
   const [players, setPlayers] = useState<player[]>([])
   const [absoluteGameTimer, setAbsoluteGameTimer] = useState(0)
@@ -43,6 +52,9 @@ function MultiplayerGame() {
   const playerIdRef = useRef<string>()
   const wsRef = useRef<WebSocket | null>(null)
   const wsIntervalRef = useRef<NodeJS.Timer>()
+  const [progress, setProgress] = useState<progress[]>([])
+  const progressRef = useRef<progress[]>([])
+  const progressIntervalRef = useRef<NodeJS.Timer>()
 
 
   useEffect(() => {
@@ -112,9 +124,9 @@ function MultiplayerGame() {
     e.stopPropagation();
     if (!start){
       setStart(true)
-      initTime.current = Date.now()
       setIntervalID(setInterval(()=>{
         let currTime = Math.floor((Date.now()-initTime.current)/ 1000);
+        console.log("TIME", currTime)
         setTime(currTime)
         if (currTime > wpmArrayRef.current.length) {
           let diff = currTime - wpmArrayRef.current.length
@@ -152,7 +164,11 @@ function MultiplayerGame() {
         const destinationIndex = checkpointRef.current[updatedInput.length-1] - 1
         while (updatedInput.length-1 != destinationIndex) {
           updatedInput.pop()
-      }
+        }
+
+        if (gameDivRef.current) {
+          gameDivRef.current.scrollTop -= 30;
+        }
 
     }
     else { 
@@ -173,6 +189,12 @@ function MultiplayerGame() {
       }
       updatedInput.push('\n')
       wordCheckRef.current.push('\n')
+
+      if (updatedInput[updatedInput.length-1] === codeArray[updatedInput.length-1]) {
+        if (gameDivRef.current) {
+          gameDivRef.current.scrollTop += 30;
+        }
+      }
 
     }
     else {
@@ -233,6 +255,10 @@ function MultiplayerGame() {
       switch(message.type) {
         case "UPDATE_PLAYER_STATE":
           // Handle player state update
+          progressRef.current = message.data.players.map((player: any) => ({name: player.name, playerID: player.game_id, color: getRandomColor()}))
+          setProgress(progressRef.current)
+          console.log("All players", message.data)
+          console.log("progress REF", progressRef.current)
           console.log("Got gameroom id", message.data.gameRoomId)
           setSnippet(message.data.Snippet)
           codeRef.current = message.data.Snippet;
@@ -255,11 +281,32 @@ function MultiplayerGame() {
           // are guaranteed to start pastt that time any
           // way so either way shouldn't be a problem.
           setAbsoluteGameTimer(Date.now() + 5000)
+          initTime.current = Date.now() + 5000;
           setLookingForGame(false)
           setInGame(true)
           break;
         case "GAME_START":
           // Handle game start
+          // start the game. dont wait for user to type
+          // thats only for the single player game.
+          setStart(true)
+
+          // we also make sure that the set interval that changes
+          // the timer is also available after the game starts.
+
+          setIntervalID(setInterval(()=>{
+            let currTime = Math.floor((Date.now()-initTime.current)/ 1000);
+            console.log("TIME", currTime)
+            setTime(currTime)
+            if (currTime > wpmArrayRef.current.length) {
+              let diff = currTime - wpmArrayRef.current.length
+              for (let i = 0; i < diff; i++) {
+                wpmArrayRef.current.push(Math.round(60*(userInputRef.current.length/(5*(wpmArrayRef.current.length + i + 1)))))
+              }
+    
+            }
+          }, 50))
+
           wsIntervalRef.current = setInterval(() => {
             console.log("SENDING THE GAME ROOM ID", gameRoomIdRef.current, wordCheckRef)
             const gameRoomId = gameRoomIdRef.current
@@ -272,13 +319,29 @@ function MultiplayerGame() {
               ws.send(message);
             }
           }, 250);
+
+          progressIntervalRef.current = setInterval(()=> {
+            setProgress(progressRef.current)
+          }, 1000)
           if (gameDivRef.current) {
             setListener(true)
         }
           break;
 
         case "WORDS":
-            console.log(message.data.progress)
+          console.log(message.data.progress)
+          // // if it is the old values from pre - game start delete it entirely.
+          // if (progressRef.current.length && !progressRef.current[0].WPM){
+          //   progressRef.current = []
+          // }
+          for (let i = 0; i < message.data.progress.length; i++){
+            const playerProgress = message.data.progress[i];
+            let progressObj: progress = { playerID: playerProgress.game_id, progress: Math.floor(playerProgress.progress * 90).toString() + '%', name: playerProgress.name, WPM: playerProgress.wpm, place: '0', color: 'random-color' }
+            // we will update the playerProgress Array with the values with the updated
+            // server verified wpm, mistakes, and progress.
+            updateProgressArray(progressObj);
+          }
+            // progressRef.current = message.data.progress.progress.toString() + '%'
           break;
           
         default:
@@ -294,12 +357,40 @@ function MultiplayerGame() {
   function changeTimer() {
       setGameTimer(absoluteGameTimer - Date.now())
   }
+
+  // updates the progress array which is what we use to display the user updates in
+  // real time.
+  
+  function updateProgressArray(newData: progress) {
+    console.log("COMPARE", progressRef.current, "NEW DATA", newData)
+      const index = progressRef.current.findIndex((existingObj) => existingObj.playerID === newData.playerID);
+  
+      if (index > -1) {
+        // Update the existing object
+        progressRef.current[index] = { playerID: newData.playerID, progress: newData.progress, name: newData.name, WPM: newData.WPM, place: newData.place, color: progressRef.current[index].color };
+      } else {
+        // Add new object
+        progressRef.current.push(newData);
+      }
+  }
+
+  function getRandomInt(min: number, max: number) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+  }
+
+  function getRandomColor() {
+    const r = getRandomInt(50, 205);
+    const g = getRandomInt(50, 205);
+    const b = getRandomInt(50, 205);
+    return `rgb(${r},${g},${b})`;
+  }
+
   return (
     <div className="App">
-      {lookingForGame && <div>
+      {lookingForGame && <div className='game-looking'>
         Looking for players: {Math.floor(gameTimer/1000)} s
       </div>}
-      {inGame && <div>
+      {inGame && <div className='game-timer'>
         Game starts in: {Math.floor(gameTimer/1000)} s
       </div>}
       <div className="singleplayer-page">
@@ -307,16 +398,55 @@ function MultiplayerGame() {
     (<div className='main-game'>
       <div>
         {/* js */}
+        
       <div className="languages">
       {start && <span className="timer">{time}s</span>}
       </div>
-        {players.map((player, index) => {
-          return <span>{player.name} </span>
-        })}
-        <div className="game-square" ref={gameDivRef} tabIndex={-1} onFocus={() => setIsFocused(true)} onBlur={() => setIsFocused(false)} onKeyDown={listener ? keydownListener : () => {}}> 
+      {/* We want to add some kind of box around the users that fits the content and looks like some kind of race track. */}
+        <div style={{border: '1px solid green', margin: '5px', borderRadius: '10px'}}>
+          {progress.map((player) => {
+            return (
+              <>
+                {player.progress ? 
+                  <div style={{ position: 'relative', margin: '5px', display: 'flex', alignItems: 'center' }}>
+                    <span className='movable-player' style={{ position: 'relative', left: 'min(' + player.progress + ', ' + '90%)', padding: '2px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                      <div>
+                        {player.name}
+                      </div>
+                      <img 
+                        style={{borderRadius: '50%', backgroundColor: player.color, padding: '3px'}} 
+                        src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABcAAAAXCAYAAADgKtSgAAAACXBIWXMAAAsTAAALEwEAmpwYAAABeElEQVR4nM3UPUgcURTF8R+EIIaAaBQEC1EsgiEWASsLmxQpUghhSwtBUEhjI9prmQ+wEERsDdgIQiqLlCJICCmsIqRJExexSW0YOMoUszLFbMiFs+++O+f+h/eWufzn8Qjb3YI/x2k3wL34hPWmgJP4iC/4jR08bAI8ix9Ywgv0aDA+5wW1YxRbOKihPzis4dsK11es4mWDWsVZAW/rTrSLn8tsdnGR43zDCZ6mVhxzPvl89hd5fhL/aGoF5457C9/HFcbwE+d4ltoeFpMvZn+V5+fxj6W2XwUfxng0gCfJi897JPmDrCOpj8c3UOodroIf4SbaxIfkr/LnFPlg1rPUb+LbLPUeVcE3cBwtYDn5dAZTkfdl3U79OL6FUu9GFXwGLTzGHF4H1rpHffHNpa8VTsdrmcA1fmGqdNwqTcV3nb6O1/IGa+jHCt5iKLVOGopvJX1r4dxx2xmdTUbv7Uf0Ht9rzpaDmip478ozusnZMtnwTfzj+AuoGZCd3wb3yAAAAABJRU5ErkJggg=="
+                      ></img>
+                    </span>
+                    <span style={{ position: 'absolute', right: 0, marginRight: '5px' }}>
+                      {player.WPM}
+                    </span>
+                  </div>
+                    :
+                  <div style={{ position: 'relative', margin: '5px', display: 'flex', alignItems: 'center' }}>
+                    <span className='movable-player' style={{ position: 'relative', left: 'min(' + player.progress + ', ' + '90%)', padding: '2px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                      <div>
+                        {player.name}
+                      </div>
+                      <img 
+                        style={{borderRadius: '50%', backgroundColor: player.color, padding: '3px'}} 
+                        src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABcAAAAXCAYAAADgKtSgAAAACXBIWXMAAAsTAAALEwEAmpwYAAABeElEQVR4nM3UPUgcURTF8R+EIIaAaBQEC1EsgiEWASsLmxQpUghhSwtBUEhjI9prmQ+wEERsDdgIQiqLlCJICCmsIqRJExexSW0YOMoUszLFbMiFs+++O+f+h/eWufzn8Qjb3YI/x2k3wL34hPWmgJP4iC/4jR08bAI8ix9Ywgv0aDA+5wW1YxRbOKihPzis4dsK11es4mWDWsVZAW/rTrSLn8tsdnGR43zDCZ6mVhxzPvl89hd5fhL/aGoF5457C9/HFcbwE+d4ltoeFpMvZn+V5+fxj6W2XwUfxng0gCfJi897JPmDrCOpj8c3UOodroIf4SbaxIfkr/LnFPlg1rPUb+LbLPUeVcE3cBwtYDn5dAZTkfdl3U79OL6FUu9GFXwGLTzGHF4H1rpHffHNpa8VTsdrmcA1fmGqdNwqTcV3nb6O1/IGa+jHCt5iKLVOGopvJX1r4dxx2xmdTUbv7Uf0Ht9rzpaDmip478ozusnZMtnwTfzj+AuoGZCd3wb3yAAAAABJRU5ErkJggg=="
+                      ></img>
+                    </span>
+                  </div>
+                }
+                
+              </>
+              )
+            
+          })}
+
+        </div>
+
+        <div className="game-square code-snippet" ref={gameDivRef} tabIndex={-1} onFocus={() => setIsFocused(true)} onBlur={() => setIsFocused(false)} onKeyDown={listener ? keydownListener : () => {}}> 
         {isFocused ? 
                   (<div>
-                  {snippet && <pre style={{fontSize:'22px'}}>
+                  {snippet && <pre>
                   {snippet.split('').map((ch, index) => {
                       let highlight = "";
                       let color = 'normal';

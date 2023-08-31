@@ -29,7 +29,7 @@ let gameRooms: GameStates = {}; // to store game room information
 let gameRoomId = uuidv4();
 let message = {}
 let startTime: number;
-let snippets: any;
+let snippets: any = [];
 async function connectDB() {
   try {
     await db.sequelize.authenticate();
@@ -96,10 +96,11 @@ let allCode: code = {
   "typescript": [],
 
 }
-
-  for (let snippet of snippets) {
-    allCode[snippet.language].push(snippet.code)
-  }
+  if (snippets) {
+    for (let snippet of snippets) {
+      allCode[snippet.language].push(snippet.code)
+    }
+}
 
   wss.on('connection', (ws: WebSocket, request: IncomingMessage) => {
     console.log("we gota connection")
@@ -208,6 +209,14 @@ let allCode: code = {
 
       if (data.type === "LEAVING_GAME") {
         const currGameRoom = gameRooms[data.gameRoomId];
+
+        // We may DELETE this code later. Since we want to say the game state at the end
+        // for users to look at their match history. So in this case we would not want
+        // to remove the player from the room until we are sure the game is saved.
+        // game is only saved after the last user is finished. And in that case we can
+        // easily tell because everyones progress is full. But if someone quits or afk
+        // we need to get rid of game rooms that are longer then a specific time and that
+        // way we can save games to match history and not take up too much server space.
         if (currGameRoom) {
             currGameRoom.players = currGameRoom.players.filter(player => player.id !== data.playerId);
             console.log('player disconnected')
@@ -273,7 +282,7 @@ let allCode: code = {
 
       // all snippets of each player to see real time update. 
       // const allSnippets: string[][] = gameRooms[currGameRoomId].players.map(player => player.playerSnippet);
-      const allProgress = gameRooms[currGameRoomId].players.map(({ words, mistakes, currMistakes, name, id }) => {
+      const allProgress = gameRooms[currGameRoomId].players.map(({ words, mistakes, currMistakes, name, game_id }) => {
         const currentTime = Date.now();
         console.log('Current Time:', currentTime);
         console.log('Start Time:', gameRooms[currGameRoomId].startTime);
@@ -282,7 +291,7 @@ let allCode: code = {
         return {
           time: currentTime,
           startTime: gameRooms[currGameRoomId].startTime,
-          id: id,
+          game_id: game_id,
           words: words,
           name: name,
           mistakes: mistakes,

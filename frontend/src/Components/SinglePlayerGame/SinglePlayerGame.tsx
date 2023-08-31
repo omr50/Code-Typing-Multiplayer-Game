@@ -31,6 +31,7 @@ function SinglePlayerGame() {
 
   const keydownListener = (e: React.KeyboardEvent<HTMLDivElement>) => {
     // Ignore tabs and meta keys like shift and ctrl
+    console.log(e.key)
     console.log('every', checkpointRef.current)
     e.stopPropagation();
     if (!start){
@@ -49,12 +50,12 @@ function SinglePlayerGame() {
         }
       }, 50))
     }
-    if (['Shift', 'Control', 'Alt'].includes(e.key)) {
+    if (['Shift', 'Control', 'Alt', ''].includes(e.key)) {
       e.preventDefault();
       return;
     }
 
-    if (["'", '/'].includes(e.key)) {
+    if (["'", '/', ' '].includes(e.key)) {
       e.preventDefault();
     }
     let updatedInput = [...userInputRef.current];
@@ -65,7 +66,6 @@ function SinglePlayerGame() {
       clearInterval(intervalID)
     }
     if (e.key === 'Backspace') {
-
       // so if user hits backspace on new line, we want them to go back to the previous line. There
       // is \n, and spaces, so we have to take those into account.
       console.log('backspace index', updatedInput.length-1)
@@ -78,6 +78,12 @@ function SinglePlayerGame() {
         const destinationIndex = checkpointRef.current[updatedInput.length-1] - 1
         while (updatedInput.length-1 != destinationIndex) {
           updatedInput.pop()
+      }
+      // so the backspace should only scroll back up to top by a bit if we are on a
+      // checkpoint that takes us back to the previous line. Otherwise removing one
+      // letter will take you back one line which is not what we want.
+      if (gameDivRef.current) {
+        gameDivRef.current.scrollTop -= 30;
       }
 
     }
@@ -94,7 +100,14 @@ function SinglePlayerGame() {
       if (updatedInput[updatedInput.length-1] != codeArray[updatedInput.length-1]) {
         mistakesRef.current++;
       }
+      
       updatedInput.push('\n')
+
+        if (updatedInput[updatedInput.length-1] === codeArray[updatedInput.length-1]) {
+          if (gameDivRef.current) {
+            gameDivRef.current.scrollTop += 30;
+          }
+        }
     }
     else {
       updatedInput.push(e.key)
@@ -215,10 +228,10 @@ function SinglePlayerGame() {
       </span>
       {start && <span className="timer">{time}s</span>}
       </div>
-        <div className="game-square" ref={gameDivRef} tabIndex={-1} onFocus={() => setIsFocused(true)} onBlur={() => setIsFocused(false)} onKeyDown={keydownListener}> 
+        <div className="game-square code-snippet" ref={gameDivRef} tabIndex={-1} onFocus={() => setIsFocused(true)} onBlur={() => setIsFocused(false)} onKeyDown={keydownListener}> 
         {isFocused ? 
                   (<div>
-                  {snippet && <pre style={{fontSize:'22px'}}>
+                  {snippet && <pre>
                   {snippet.split('').map((ch, index) => {
                       let highlight = "";
                       let color = 'normal';
