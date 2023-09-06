@@ -1,6 +1,5 @@
-# Code-Typing-Multiplayer-Game
-
-## Microservice based Code Typing multiplayer game.
+# Code Racer
+## A Code Typing multiplayer game built with a microservice architecture
 
 ## Summary & Motivation
 This is a web browser game similar to type racer except instead of typing out sentences or quotes,
@@ -70,9 +69,9 @@ overall improvement over time.*
 2. Make sure you have docker installed.
 Run the following commands:
 
-  docker-compose up --build
+    docker-compose up --build
 
-  python db_csv_insert.py
+    python db_csv_insert.py
 
 Docker compose will run all of the services.
 
