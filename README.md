@@ -28,32 +28,39 @@ React, Node.js, Express.js, Typescript, Web Sockets, Postgres, Sequelize, Chart.
 ## Project in Action
 
 ![Imgur](https://i.imgur.com/ogfC6j2.png)
+
 *User practicing Javascript typing speed in single player mode.*
 
 
 ![Imgur](https://i.imgur.com/3C0JtZd.png)
+
 *Two Logged in users racing against eachother in a multiplayer code typing game.*
 
 
 ![Imgur](https://i.imgur.com/s0nWgT6.png)
+
 *User practicing Python in single player. Red highlight when user makes an errror.*
 
 
 ![Imgur](https://i.imgur.com/ZD6C54p.png)
+
 *Analytics Visualization: Post-game analytics such as interactive graphs, 
 providing users insights into their coding speed, mistake patterns, and 
 overall improvement over time.*
 
 
 ![Imgur](https://i.imgur.com/LzCxY3E.png)
+
 *Client and server side validation of user sign up.*
 
 
 ![Imgur](https://i.imgur.com/7QkdIVg.png)
+
 *User switched to login screen after successful initial signup.*
 
 
 ![Imgur](https://i.imgur.com/NXRzZJX.png)
+
 *Analytics like before, but user enabled light theme.*
 
 
