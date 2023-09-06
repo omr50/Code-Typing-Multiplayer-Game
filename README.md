@@ -70,8 +70,8 @@ overall improvement over time.*
 3. Run the following commands:
 
 ```
-    docker-compose up --build
-    python db_csv_insert.py
+docker-compose up --build
+python db_csv_insert.py
 ```
 Docker compose will run all of the services.
 
