@@ -23,7 +23,7 @@ const Button: React.FC<ButtonProps> = ({ children, color='#A30000', hoverColor='
     border: 'none',
     cursor: 'pointer',
     padding: '10px 10px',
-    fontSize: '15px'
+    fontSize: '15px',
   };
 
   function hoverEffect(e: React.MouseEvent<HTMLButtonElement>) {

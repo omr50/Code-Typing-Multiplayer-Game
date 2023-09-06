@@ -14,20 +14,23 @@ export interface CustomRequest extends Request {
  // if they have correct jwt, let them through.
 export const auth = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const username = req.params.username;
+    console.log('req body', req.body)
+    const username = req.params.user;
     const token = req.header('Authorization')?.replace('Bearer ', '');
- 
+    console.log("u + t", username, token)
     if (!token) {
       throw new Error();
     }
  
     const decoded = jwt.verify(token, SECRET_KEY!);
-
+    console.log("decoded",decoded)
     if (typeof decoded == 'string' || !('user' in decoded)) {
+      console.log("EITHER STRING OR NOT USER")
       throw new Error();
     } 
     else {
       if (username != decoded.user) {
+        console.log("NOT EQUAL")
         throw new Error();
       }
     }
@@ -36,6 +39,7 @@ export const auth = async (req: Request, res: Response, next: NextFunction) => {
     return next();
 
   } catch (err) {
+    console.log("error", err)
     res.status(401).send('Authentication Error!');
   }
  };

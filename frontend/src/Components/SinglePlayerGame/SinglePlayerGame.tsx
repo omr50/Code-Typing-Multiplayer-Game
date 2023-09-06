@@ -3,6 +3,8 @@ import "./SinglePlayerGame.css"
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import EndGame from "../EndGame/EndGame";
+import { useAuth } from "../../contexts/auth/AuthContext";
+import { apiClient } from "../../api/apiClient";
 function SinglePlayerGame() {
   const navigate = useNavigate();
   const { language } = useParams();
@@ -21,6 +23,8 @@ function SinglePlayerGame() {
   const wpmArrayRef = useRef<number[]>([]);
   const [gamestate, setGamestate] = useState<boolean>(true)
   const mistakesRef = useRef<number>(0);
+  // get username from auth context
+  const {username, token} = useAuth();
 
 
   useEffect(() => {
@@ -62,8 +66,34 @@ function SinglePlayerGame() {
     let codeArray = codeRef.current.split('')
     
     if (mistakeStart === null && userInput.length + 1 === codeArray.length && e.key === codeArray[codeArray.length - 1]) {
+      // if user finishes the game, end it
+      // and store their info in the db.
+      // if the user is not a guest then send
+      // the data otherwise don't.
+      if (username) {
+        // since the user exists we send their data to the 
+        // endpoint to be saved in the database.
+          console.log("sending game info")
+          apiClient.post(`/user/saveGame/${username}`, {
+            username: username,
+            wpm: Math.floor(60 * (codeRef.current.length / (5 * time))),
+            accuracy: Math.floor(100 * (codeRef.current.length - mistakesRef.current)/codeRef.current.length)
+          },{
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            // must add that the content will be json
+            // to avoid error.
+            'Content-Type' : 'application/json'
+        }})
+        .then(response => console.log("Sucessfully saved data"))
+        .catch(error => console.log("unable to save data", error))
+      }
+      // either way if user or guest we want to set the game state
+      // to false and clear the intervalID so that our set Interval
+      // stops.
       setGamestate(false)
       clearInterval(intervalID)
+      
     }
     if (e.key === 'Backspace') {
       // so if user hits backspace on new line, we want them to go back to the previous line. There

@@ -8,10 +8,10 @@ const SECRET_KEY = process.env.secretkey;
 
 
 export async function login(user: loginSchema) {
-    console.log(user.email, user.password)
+    console.log(user.username, user.password)
     const foundUser = await User.findOne({
       where: {
-        email: user.email
+        username: user.username
       }
     });
  
@@ -24,10 +24,10 @@ export async function login(user: loginSchema) {
     console.log("password is " + isMatch)
     if (isMatch) {
       console.log('works')
-      const payload = {email: foundUser.email}
+      const payload = {user: foundUser.username}
       const token = jwt.sign(payload, SECRET_KEY!, { expiresIn: '2d' });
  
-      return { username: foundUser.username, token: token };
+      return { name: foundUser.username, token: token };
     } else {
       throw new Error();
     }

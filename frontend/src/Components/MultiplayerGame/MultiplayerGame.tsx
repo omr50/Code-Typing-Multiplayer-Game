@@ -3,6 +3,7 @@ import Button from '../Customizable-Button/Button';
 import './MultiplayerGame.css'
 import { useNavigate, useParams } from 'react-router-dom';
 import EndGame from '../EndGame/EndGame';
+import { cars } from './carsArray';
 
 interface player {
   name: string,
@@ -29,6 +30,7 @@ function MultiplayerGame() {
   const wpmArrayRef = useRef<number[]>([]);
   const [gamestate, setGamestate] = useState<boolean>(true)
   const mistakesRef = useRef<number>(0);
+  const [joined, setJoined] = useState(false)
 
   interface progress {
     playerID: string,
@@ -55,6 +57,7 @@ function MultiplayerGame() {
   const [progress, setProgress] = useState<progress[]>([])
   const progressRef = useRef<progress[]>([])
   const progressIntervalRef = useRef<NodeJS.Timer>()
+  const totalCarsRef = useRef<number>(0)
 
 
   useEffect(() => {
@@ -83,6 +86,7 @@ function MultiplayerGame() {
 
 
   useEffect(() => {
+
     if (gameDivRef.current) {
       gameDivRef.current.focus();
     }
@@ -240,6 +244,7 @@ function MultiplayerGame() {
   }, [gameTimer]);
   
   function establishConnection() {
+    setJoined(true)
     setLookingForGame(true)
     let ws = new WebSocket('ws://localhost:5000');
     wsRef.current = ws;
@@ -254,8 +259,9 @@ function MultiplayerGame() {
 
       switch(message.type) {
         case "UPDATE_PLAYER_STATE":
+          totalCarsRef.current = 0
           // Handle player state update
-          progressRef.current = message.data.players.map((player: any) => ({name: player.name, playerID: player.game_id, color: getRandomColor()}))
+          progressRef.current = message.data.players.map((player: any) => ({name: player.name, playerID: player.game_id, color: cars[totalCarsRef.current++]}))
           setProgress(progressRef.current)
           console.log("All players", message.data)
           console.log("progress REF", progressRef.current)
@@ -390,9 +396,10 @@ function MultiplayerGame() {
       {lookingForGame && <div className='game-looking'>
         Looking for players: {Math.floor(gameTimer/1000)} s
       </div>}
-      {inGame && <div className='game-timer'>
+      {(inGame && !start) && <div className='game-timer'>
         Game starts in: {Math.floor(gameTimer/1000)} s
       </div>}
+      {joined ?
       <div className="singleplayer-page">
       {gamestate ?
     (<div className='main-game'>
@@ -403,7 +410,7 @@ function MultiplayerGame() {
       {start && <span className="timer">{time}s</span>}
       </div>
       {/* We want to add some kind of box around the users that fits the content and looks like some kind of race track. */}
-        <div style={{border: '1px solid green', margin: '5px', borderRadius: '10px'}}>
+        <div style={{border: '1px solid green', margin: '5px', borderRadius: '10px'}} className='racer-square'>
           {progress.map((player) => {
             return (
               <>
@@ -414,8 +421,8 @@ function MultiplayerGame() {
                         {player.name}
                       </div>
                       <img 
-                        style={{borderRadius: '50%', backgroundColor: player.color, padding: '3px'}} 
-                        src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABcAAAAXCAYAAADgKtSgAAAACXBIWXMAAAsTAAALEwEAmpwYAAABeElEQVR4nM3UPUgcURTF8R+EIIaAaBQEC1EsgiEWASsLmxQpUghhSwtBUEhjI9prmQ+wEERsDdgIQiqLlCJICCmsIqRJExexSW0YOMoUszLFbMiFs+++O+f+h/eWufzn8Qjb3YI/x2k3wL34hPWmgJP4iC/4jR08bAI8ix9Ywgv0aDA+5wW1YxRbOKihPzis4dsK11es4mWDWsVZAW/rTrSLn8tsdnGR43zDCZ6mVhxzPvl89hd5fhL/aGoF5457C9/HFcbwE+d4ltoeFpMvZn+V5+fxj6W2XwUfxng0gCfJi897JPmDrCOpj8c3UOodroIf4SbaxIfkr/LnFPlg1rPUb+LbLPUeVcE3cBwtYDn5dAZTkfdl3U79OL6FUu9GFXwGLTzGHF4H1rpHffHNpa8VTsdrmcA1fmGqdNwqTcV3nb6O1/IGa+jHCt5iKLVOGopvJX1r4dxx2xmdTUbv7Uf0Ht9rzpaDmip478ozusnZMtnwTfzj+AuoGZCd3wb3yAAAAABJRU5ErkJggg=="
+                        style={{ padding: '3px'}} 
+                        src={player.color}
                       ></img>
                     </span>
                     <span style={{ position: 'absolute', right: 0, marginRight: '5px' }}>
@@ -429,8 +436,8 @@ function MultiplayerGame() {
                         {player.name}
                       </div>
                       <img 
-                        style={{borderRadius: '50%', backgroundColor: player.color, padding: '3px'}} 
-                        src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABcAAAAXCAYAAADgKtSgAAAACXBIWXMAAAsTAAALEwEAmpwYAAABeElEQVR4nM3UPUgcURTF8R+EIIaAaBQEC1EsgiEWASsLmxQpUghhSwtBUEhjI9prmQ+wEERsDdgIQiqLlCJICCmsIqRJExexSW0YOMoUszLFbMiFs+++O+f+h/eWufzn8Qjb3YI/x2k3wL34hPWmgJP4iC/4jR08bAI8ix9Ywgv0aDA+5wW1YxRbOKihPzis4dsK11es4mWDWsVZAW/rTrSLn8tsdnGR43zDCZ6mVhxzPvl89hd5fhL/aGoF5457C9/HFcbwE+d4ltoeFpMvZn+V5+fxj6W2XwUfxng0gCfJi897JPmDrCOpj8c3UOodroIf4SbaxIfkr/LnFPlg1rPUb+LbLPUeVcE3cBwtYDn5dAZTkfdl3U79OL6FUu9GFXwGLTzGHF4H1rpHffHNpa8VTsdrmcA1fmGqdNwqTcV3nb6O1/IGa+jHCt5iKLVOGopvJX1r4dxx2xmdTUbv7Uf0Ht9rzpaDmip478ozusnZMtnwTfzj+AuoGZCd3wb3yAAAAABJRU5ErkJggg=="
+                        style={{ padding: '3px'}} 
+                        src={player.color}
                       ></img>
                     </span>
                   </div>
@@ -488,7 +495,10 @@ function MultiplayerGame() {
     </div>)
     }
   </div>
-      <Button onClick={establishConnection}>Enter a Game</Button>
+  : 
+  <div style={{position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)'}}>
+    <Button onClick={establishConnection}>Enter a Game</Button>
+  </div>}
     </div>
   );
 }

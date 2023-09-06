@@ -5,6 +5,6 @@ export interface userSchema {
 }
 
 export interface loginSchema {
-  email: string;
+  username: string;
   password: string;
 }

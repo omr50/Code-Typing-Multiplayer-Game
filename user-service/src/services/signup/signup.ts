@@ -24,10 +24,12 @@ async function signup(user: userSchema) {
     });
 
     if (existing_Email) {
+      console.log("email error")
       throw new Error('Email already exists!')
     }
 
     if (existing_Username) {
+      console.log("username error")
       throw new Error('Username already exists!')
     }
 

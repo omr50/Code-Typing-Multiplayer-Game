@@ -28,6 +28,10 @@
   overflow-y: auto;
 }
 
+.racer-square {
+  background-color: var(--game-input-box);
+}
+
 .white {
   color: white !important;
 }
@@ -107,4 +111,18 @@
 
 .game-timer {
   color: var(--text-color);
+}
+
+.custom-button {
+  animation: shake-animation 2s infinite;
+}
+
+@keyframes shake-animation {
+  0% { transform: translateX(0); }
+  10% { transform: translateX(-10px); }
+  20% { transform: translateX(10px); }
+  30% { transform: translateX(-10px); }
+  40% { transform: translateX(10px); }
+  50% { transform: translateX(0); }
+  60%, 100% { transform: translateX(0); } /* pause for half a second */
 }
