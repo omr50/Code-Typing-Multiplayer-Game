@@ -19,6 +19,7 @@ such as:
 * HTML
 * C#
 * Kotlin
+
 (I might add more languages in the future depending on demand)
 
 ## Technologies Used
@@ -63,7 +64,7 @@ overall improvement over time.*
 *Analytics like before, but user enabled light theme.*
 
 
-**How to Run Project Locally
+## How to Run Project Locally
 
 1. Clone the repository.
 2. Make sure you have docker installed.
