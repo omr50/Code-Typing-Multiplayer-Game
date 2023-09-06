@@ -67,11 +67,12 @@ overall improvement over time.*
 
 1. Clone the repository.
 2. Make sure you have docker installed.
-Run the following commands:
+3. Run the following commands:
 
+```
     docker-compose up --build
     python db_csv_insert.py
-
+```
 Docker compose will run all of the services.
 
 Running the python script will load the snippets
