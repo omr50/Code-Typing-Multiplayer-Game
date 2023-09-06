@@ -27,7 +27,7 @@ React, Node.js, Express.js, Typescript, Web Sockets, Postgres, Sequelize, Chart.
 
 ## Project in Action
 
-![Imgur]("https://i.imgur.com/ogfC6j2.png")
+![Imgur](https://i.imgur.com/ogfC6j2.png)
 *User practicing Javascript typing speed in single player mode.*
 
 ![Imgur](https://i.imgur.com/3C0JtZd.png)
