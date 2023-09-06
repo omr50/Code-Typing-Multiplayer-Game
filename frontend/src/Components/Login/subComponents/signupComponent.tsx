@@ -175,7 +175,7 @@ const SignupComponent: React.FC<ChildProp> = (props) => {
             <span className="lines">&#x2015;&#x2015;&#x2015;&#x2015;&#x2015;</span>Already a member?<span className="lines">&#x2015;&#x2015;&#x2015;&#x2015;&#x2015;</span>
             </div>
             </div>
-            <div className="join-text"><b className="join-link" onClick={()=>{props.changeComp(<LoginUserPassword changeComp={props.changeComp} closeForm={props.closeForm}/>, 'LoginUserPassword')}}>Sign in</b> using your Crack Coder account.</div>
+            <div className="join-text"><b className="join-link" onClick={()=>{props.changeComp(<LoginUserPassword changeComp={props.changeComp} closeForm={props.closeForm}/>, 'LoginUserPassword')}}>Sign in</b> using your Code Racer account.</div>
 
         </Form>
       </div>

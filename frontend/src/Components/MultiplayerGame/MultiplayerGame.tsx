@@ -4,6 +4,7 @@ import './MultiplayerGame.css'
 import { useNavigate, useParams } from 'react-router-dom';
 import EndGame from '../EndGame/EndGame';
 import { cars } from './carsArray';
+import { useAuth } from '../../contexts/auth/AuthContext';
 
 interface player {
   name: string,
@@ -58,6 +59,7 @@ function MultiplayerGame() {
   const progressRef = useRef<progress[]>([])
   const progressIntervalRef = useRef<NodeJS.Timer>()
   const totalCarsRef = useRef<number>(0)
+  const {username} = useAuth();
 
 
   useEffect(() => {
@@ -246,7 +248,15 @@ function MultiplayerGame() {
   function establishConnection() {
     setJoined(true)
     setLookingForGame(true)
-    let ws = new WebSocket('ws://localhost:5000');
+    let wsConnectionString = ""
+    if (username) {
+      wsConnectionString = `ws://localhost:5000?name=${username}`
+    }
+    else {
+      wsConnectionString = 'ws://localhost:5000'
+    }
+    console.log("CONNECTION STRING", wsConnectionString)
+    let ws = new WebSocket(wsConnectionString);
     wsRef.current = ws;
 
     ws.onopen = function() {

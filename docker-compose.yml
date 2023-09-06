@@ -28,14 +28,6 @@ services:
     env_file:
       - .env
 
-  order-service:
-    build:
-      context: ./order-service
-    ports:
-      - "4000:4000"
-    env_file:
-      - .env
-
   api-gateway:
     build:
       context: ./api-gateway

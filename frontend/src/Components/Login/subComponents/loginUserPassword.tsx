@@ -88,7 +88,7 @@ const LoginUserPassword: React.FC<ChildProp> = (props) => {
             <span className="lines">&#x2015;&#x2015;&#x2015;&#x2015;&#x2015;</span>Not a member?<span className="lines">&#x2015;&#x2015;&#x2015;&#x2015;&#x2015;</span>
           </div>
         </div>
-        <div className="join-text"><b className="join-link" onClick={()=>{props.changeComp(<SignupComponent changeComp={props.changeComp} closeForm={props.closeForm}/>, 'SignupComponent')}}>Join</b> to unlock the best of Crack Coder.</div>
+        <div className="join-text"><b className="join-link" onClick={()=>{props.changeComp(<SignupComponent changeComp={props.changeComp} closeForm={props.closeForm}/>, 'SignupComponent')}}>Join</b> to unlock the best of Code Racer.</div>
 
       </Form>
       </div>

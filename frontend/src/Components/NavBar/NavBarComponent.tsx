@@ -40,7 +40,7 @@ const NavigationBar: React.FC<ChildProp>= (props) => {
   const {username, token, logout} = useAuth();
 
   useEffect(() => {
-    const arr = "Crack Coder".split("");
+    const arr = "Code Racer".split("");
 
     intervalRef.current = setInterval(() => {
       if (pageTitle.length === arr.length) {
@@ -87,7 +87,7 @@ const NavigationBar: React.FC<ChildProp>= (props) => {
           {token ?
           <>
             <Nav.Link className='nav-link-style' onClick={()=>{navigate('/profile')}}>
-              &#xa0;{username}
+              &#xa0;Hello {username}
             </Nav.Link>
 
             <Nav.Link className='nav-link-style' onClick={logout}>

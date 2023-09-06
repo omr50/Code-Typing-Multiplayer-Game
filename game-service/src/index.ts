@@ -104,8 +104,12 @@ let allCode: code = {
 
   wss.on('connection', (ws: WebSocket, request: IncomingMessage) => {
     console.log("we gota connection")
-    const urlParams = new URLSearchParams(request.url);
-    const name = urlParams.get('name');
+    console.log("Received URL", request.url)
+    const urlObj = new URL(request.url!, 'http://dummyhost'); // The host here doesn't matter because you're only interested in the query.
+    // retrieve name. if its null they will get a default 
+    // guest playername in the player object below. 
+    const name = urlObj.searchParams.get('name');
+    console.log("Users name is", name)
   
     const player: Player = {
       name: name || 'guest',  
